@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trainings</title>
+<style>
+  /* ============ DESIGN TOKENS (from ankahee-design-tokens.css) ============ */
+  :root {
+    --bg: #FAF6F2;
+    --surface: #FFFFFF;
+    --surface-soft: #F3EEE8;
+    --primary: #5B4B7C;
+    --primary-dark: #443A5E;
+    --primary-soft: #EDE8F3;
+    --success: #4F8A6D;
+    --success-soft: #E7F1EB;
+    --risk: #B8524A;
+    --risk-soft: #F7E9E7;
+    --text: #2E2A33;
+    --text-muted: #7A7480;
+    --border: #E4DDD6;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --shadow: 0 2px 10px rgba(46, 42, 51, 0.06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--primary); }
+  [hidden] { display: none !important; }
+
+  /* ============ HEADER ============ */
+  header {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 10px 12px; display: flex; align-items: center; gap: 8px; min-height: 58px;
+  }
+  .icon-btn {
+    width: 44px; height: 44px; border: none; background: none; border-radius: 999px;
+    font-size: 28px; line-height: 1; color: var(--primary); cursor: pointer; flex-shrink: 0;
+  }
+  .icon-btn:active { background: var(--primary-soft); }
+  .icon-btn.refresh { font-size: 24px; }
+  .icon-btn.spin { animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hdr-title { flex: 1; min-width: 0; padding-left: 4px; }
+  .hdr-title .title { font-size: 16px; font-weight: 700; color: var(--primary-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hdr-title .subtitle { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #hActions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+  /* ============ LAYOUT ============ */
+  main { max-width: 720px; margin: 0 auto; padding: 16px 16px 120px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 18px; margin-bottom: 14px;
+  }
+  .card-title {
+    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--primary-dark); margin: 0 0 10px 0; display: flex; justify-content: space-between; align-items: center;
+  }
+  .card-title .link-btn { text-transform: none; letter-spacing: 0; font-size: 14px; }
+  .muted { color: var(--text-muted); }
+  .small { font-size: 13px; }
+  .center { text-align: center; }
+  .loading-note, .empty { text-align: center; padding: 36px 16px; color: var(--text-muted); font-size: 15px; }
+  .empty .btn { margin-top: 12px; }
+
+  /* ============ BUTTONS ============ */
+  .btn {
+    min-height: 44px; padding: 10px 18px; border-radius: var(--radius-sm); border: 1.5px solid var(--primary);
+    background: var(--surface); color: var(--primary); font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit;
+    display: inline-flex; align-items: center; justify-content: center; text-decoration: none;
+  }
+  .btn:active { background: var(--primary-soft); }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:active { background: var(--primary-dark); }
+  .btn-sm { min-height: 44px; padding: 8px 14px; font-size: 14px; border-radius: 999px; }
+  .btn:disabled { opacity: 0.5; }
+  .link-btn { background: none; border: none; color: var(--primary); font-weight: 600; font-size: 15px; cursor: pointer; padding: 10px 4px; min-height: 44px; font-family: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ============ BOTTOM BAR ============ */
+  .bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--surface);
+    border-top: 1px solid var(--border); padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  }
+  .bar-inner { max-width: 720px; margin: 0 auto; display: flex; gap: 10px; }
+  .bar-inner .btn { flex: 1; min-height: 50px; font-size: 16px; font-weight: 700; }
+  .bar-error { max-width: 720px; margin: 0 auto 8px; font-size: 13px; color: var(--risk); text-align: center; display: none; }
+
+  /* ============ TABS, SEARCH, FILTERS ============ */
+  .identity-bar {
+    display: flex; align-items: center; justify-content: space-between; background: var(--primary-soft);
+    border-radius: var(--radius-sm); padding: 4px 6px 4px 14px; margin-bottom: 14px; font-size: 14px;
+  }
+  .identity-bar strong { color: var(--primary-dark); }
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; }
+  .tab {
+    padding: 10px 16px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface);
+    font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer; min-height: 44px; white-space: nowrap; font-family: inherit;
+  }
+  .tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .searchrow { display: flex; gap: 8px; margin-bottom: 10px; }
+  .searchrow input { flex: 1; }
+  .filter-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .filter-panel .field { margin: 0; }
+  .filter-panel .wide { grid-column: 1 / -1; text-align: right; }
+  .count-line { font-size: 13px; color: var(--text-muted); margin: 4px 2px 10px; }
+
+  /* ============ LIST ROWS ============ */
+  .list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; margin-bottom: 14px; }
+  .row { display: block; padding: 14px 16px; border-bottom: 1px solid var(--border); text-decoration: none; color: inherit; min-height: 44px; }
+  .row:last-child { border-bottom: none; }
+  a.row:active { background: var(--primary-soft); }
+  .row-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+  .row-title { font-weight: 600; font-size: 16px; color: var(--text); }
+  .row-sub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .row-tags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* ============ BADGES ============ */
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: var(--surface-soft); color: var(--text); white-space: nowrap;
+  }
+  .st-new { background: var(--primary-soft); color: var(--primary-dark); }
+  .st-prog { background: var(--primary); color: #fff; }
+  .st-conv { background: var(--success-soft); color: var(--success); }
+  .st-ni { background: var(--surface-soft); color: var(--text-muted); }
+  .cold { background: var(--risk-soft); color: var(--risk); }
+  .tag { background: var(--primary-soft); color: var(--primary-dark); }
+
+  /* ============ ORGANISATION PAGE ============ */
+  .org-name { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .contact { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .contact:last-child { border-bottom: none; padding-bottom: 0; }
+  .contact:first-child { padding-top: 0; }
+  .c-name { font-weight: 600; }
+  .c-role { font-size: 13px; color: var(--text-muted); }
+  .c-links { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 2px; }
+  .c-links a { display: inline-flex; align-items: center; min-height: 44px; font-size: 15px; }
+  .about-text, .pre { white-space: pre-wrap; }
+  .kv { display: grid; grid-template-columns: 120px 1fr; gap: 6px 12px; font-size: 14px; }
+  .kv dt { color: var(--text-muted); } .kv dd { margin: 0; }
+  .int { padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .int:last-child { border-bottom: none; padding-bottom: 0; }
+  .int:first-child { padding-top: 0; }
+  .int-top { font-size: 13px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .int-top b { color: var(--text); }
+  .int-edit { margin: -12px -4px -12px 0; flex-shrink: 0; font-size: 14px; }
+  .int-sum { margin-top: 3px; white-space: pre-wrap; }
+  .int-next { margin-top: 4px; font-size: 14px; white-space: pre-wrap; }
+  .overdue { color: var(--risk); font-weight: 600; }
+  .meta { font-size: 13px; color: var(--text-muted); }
+  .meta-actions { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; }
+  .banner { background: var(--risk-soft); border: 1px solid #E9C9C5; border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px; font-size: 14px; }
+  .banner.soft { background: var(--primary-soft); border-color: var(--border); }
+  .banner ul { margin: 6px 0 0; padding-left: 18px; }
+
+  /* ============ FORMS ============ */
+  .field { margin-bottom: 18px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .field-label .optional { font-weight: 400; color: var(--text-muted); font-size: 12px; margin-left: 4px; }
+  select, input[type="text"], input[type="date"], input[type="search"], input[type="url"], input[type="number"] {
+    width: 100%; padding: 12px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border);
+    font-size: 16px; background: var(--surface); color: var(--text); min-height: 46px; font-family: inherit;
+  }
+  textarea {
+    width: 100%; padding: 12px 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border);
+    font-size: 16px; font-family: inherit; min-height: 80px; resize: vertical; background: var(--surface); color: var(--text);
+  }
+  select:focus, input:focus, textarea:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 10px 16px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface);
+    font-size: 14px; color: var(--text); cursor: pointer; min-height: 44px; display: flex; align-items: center;
+    user-select: none; font-family: inherit;
+  }
+  .chip:active { transform: scale(0.97); }
+  .chip.selected { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+  .chips[data-multi] .chip.selected::before { content: "✓"; margin-right: 6px; font-weight: 700; }
+  .chip.disabled { opacity: 0.45; cursor: default; text-decoration: line-through; }
+  .field.flash { outline: 2px solid var(--risk); border-radius: 10px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .check-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; min-height: 44px; border-bottom: 1px solid var(--border); }
+  .check-row:last-child { border-bottom: none; }
+  .check-row input { width: 24px; height: 24px; accent-color: var(--primary); flex-shrink: 0; }
+  .check-row .grow { flex: 1; min-width: 0; }
+  .dupbox { background: var(--primary-soft); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
+  .dupbox a.row { background: var(--surface); border-radius: var(--radius-sm); border: 1px solid var(--border); margin-bottom: 8px; }
+  .dupbox .btns { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+
+  .combo { position: relative; }
+  .combo-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; max-height: 240px; overflow-y: auto; background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); z-index: 25; }
+  .combo-item { padding: 10px 14px; min-height: 44px; cursor: pointer; display: flex; flex-direction: column; justify-content: center; }
+  .combo-item:active, .combo-item:hover { background: var(--primary-soft); }
+  .combo-item .s { font-size: 12px; color: var(--text-muted); }
+  .combo-empty { padding: 12px 14px; color: var(--text-muted); font-size: 14px; }
+
+  /* ============ SHEET, TOAST, CONFIRM ============ */
+  .sheet-back { position: fixed; inset: 0; background: rgba(46, 42, 51, 0.35); z-index: 60; display: flex; align-items: flex-end; justify-content: center; }
+  .sheet { background: var(--surface); width: 100%; max-width: 720px; border-radius: var(--radius) var(--radius) 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); }
+  .sheet .btn { width: 100%; margin-bottom: 10px; }
+  .sheet .btn:last-child { margin-bottom: 0; }
+  .toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); background: var(--primary-dark); color: #fff; padding: 12px 18px; border-radius: 999px; font-size: 14px; z-index: 90; max-width: 90%; box-shadow: var(--shadow); }
+  .confirm-overlay { position: fixed; inset: 0; background: rgba(46, 42, 51, 0.35); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  .confirm-overlay.show { display: flex; }
+  .confirm-card { background: var(--surface); border-radius: var(--radius); padding: 32px 28px; text-align: center; max-width: 320px; box-shadow: 0 8px 30px rgba(46,42,51,0.15); }
+  .confirm-check { width: 56px; height: 56px; border-radius: 50%; background: var(--success-soft); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+  .confirm-check svg { width: 28px; height: 28px; }
+  .confirm-check circle { stroke: var(--success); stroke-width: 2; fill: none; stroke-dasharray: 63; stroke-dashoffset: 63; animation: circleDraw 0.5s ease forwards; }
+  .confirm-check path { stroke: var(--success); stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 20; stroke-dashoffset: 20; animation: checkDraw 0.3s ease forwards 0.45s; }
+  @keyframes circleDraw { to { stroke-dashoffset: 0; } }
+  @keyframes checkDraw { to { stroke-dashoffset: 0; } }
+  .confirm-title { font-size: 17px; font-weight: 700; margin: 0 0 6px; }
+  .confirm-sub { font-size: 14px; color: var(--text-muted); margin: 0; }
+
+  /* ============ FEATURE SPEC TABLE ============ */
+  .spec-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+  table.spec { border-collapse: collapse; min-width: 1100px; font-size: 13px; }
+  table.spec th { text-align: left; background: var(--primary-soft); color: var(--primary-dark); padding: 10px; position: sticky; top: 0; }
+  table.spec td { vertical-align: top; padding: 10px; border-top: 1px solid var(--border); }
+  .spec-view main, body.spec-view main { max-width: none; }
+
+  @media (prefers-reduced-motion: reduce) { .confirm-check circle, .confirm-check path { animation: none; stroke-dashoffset: 0; } .icon-btn.spin { animation: none; } }
+</style>
+</head>
+<body>
+
+<header id="hdr">
+  <button class="icon-btn" id="backBtn" aria-label="Back" hidden>&#8249;</button>
+  <div class="hdr-title"><div class="title" id="hTitle"></div><div class="subtitle" id="hSub"></div></div>
+  <div id="hActions"></div>
+</header>
+<main id="view"><div class="loading-note">Loading…</div></main>
+<div class="bar" id="bar" hidden></div>
+<div id="sheetHost"></div>
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-card">
+    <div class="confirm-check"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M7 12.5l3 3 7-7"></path></svg></div>
+    <p class="confirm-title" id="confirmTitle"></p>
+    <p class="confirm-sub" id="confirmSub"></p>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ====================================================================
+   Training front end — training delivery and fee follow-up (one HTML file)
+
+   Structure:
+     CORE            state, API, router, UI and form helpers. The core blocks
+                     are copied from crm_v2.html (core-shared v2) so every tool
+                     behaves the same way.
+     FEATURE BLOCKS  F02 … F11, each between BEGIN/END markers and headed by
+                     a spec tag. A feature registers itself into REG (routes,
+                     home tabs, menus); deleting its block removes the feature
+                     and leaves the rest working.
+     F01             connect / identify / start-up (last, because it runs)
+   The Feature Spec view is generated from the spec tags at build time.
+   ==================================================================== */
+
+const S = {
+  url: '', key: '', me: '', cfg: {}, members: [], products: [], levels: [], facilitators: [], orgs: [], trainings: [], receipts: [],
+  lists: { paymentMode: [] }, idx: {}, ui: {}
+};
+const REG = { routes: {}, homeTabs: [], homeBanners: [], addMenu: [], settingsItems: [], acts: {} };
+const TYPES = ['Client-specific', 'Open batch'];
+const MODES = ['Online', 'In-person'];
+const STATUSES = ['Planned', 'Confirmed', 'Delivered', 'Cancelled'];
+const BASES = ['Free', 'Per training', 'Per participant'];
+
+/* ---- core-shared v2 (from crm_v2.html): utilities, storage, API ---- */
+/* ---------- small utilities ---------- */
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+function esc(s) { return String(s === undefined || s === null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+const escA = esc;
+function isYes(v) { return String(v || '').trim().toLowerCase() === 'yes'; }
+function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+function hashStr(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; return h.toString(36); }
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function parseD(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : NaN; }
+function daysBetween(a, b) { return Math.round((parseD(b) - parseD(a)) / 86400000); }
+function fmtD(s) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ''); return m ? (+m[3]) + ' ' + MON[+m[2] - 1] + ' ' + m[1] : ''; }
+function todayStr() { return S.cfg.today || ''; }
+function agoText(d) {
+  const n = daysBetween(d, todayStr());
+  if (isNaN(n)) return '';
+  return n === 0 ? 'today' : n === 1 ? 'yesterday' : n < 0 ? 'in ' + plural(-n, 'day') : plural(n, 'day') + ' ago';
+}
+
+/* ---------- per-device storage (never required to work) ---------- */
+const mem = {};
+let NS = 'trn.';
+const store = {
+  get(k) { try { return localStorage.getItem(NS + k); } catch (e) { return mem[NS + k] || null; } },
+  set(k, v) { try { localStorage.setItem(NS + k, v); } catch (e) { mem[NS + k] = v; } },
+  del(k) { try { localStorage.removeItem(NS + k); } catch (e) { delete mem[NS + k]; } }
+};
+
+/* ---------- API ---------- */
+async function api(action, payload, isWrite) {
+  const body = Object.assign({ action: action, key: S.key }, payload || {});
+  let res;
+  try {
+    if (isWrite) {
+      res = await fetch(S.url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) });
+    } else {
+      const q = Object.keys(body).map(k => encodeURIComponent(k) + '=' + encodeURIComponent(body[k])).join('&');
+      res = await fetch(S.url + (S.url.indexOf('?') >= 0 ? '&' : '?') + q);
+    }
+  } catch (e) {
+    throw new Error("Couldn't reach the tool. Check the connection and try again.");
+  }
+  let json;
+  try { json = await res.json(); } catch (e) { throw new Error('The tool sent back something unexpected. Check the web app address.'); }
+  if (!json.ok) throw new Error(json.error || 'Something went wrong.');
+  return json.data;
+}
+
+
+/* ---------- data, index, derived values ---------- */
+function upsert(list, keyName, obj) {
+  const i = list.findIndex(x => x[keyName] === obj[keyName]);
+  if (i >= 0) list[i] = obj; else list.push(obj);
+}
+function activeNames() { return S.members.filter(m => isYes(m['Active'])).map(m => m['Name']).sort((a, b) => a.localeCompare(b)); }
+function activeOrgs() { return S.orgs.filter(o => o['Record Status'] !== 'Archived'); }
+function resolveOrgId(id) {
+  for (let hop = 0; hop < 6; hop++) {
+    const o = S.idx.org[id];
+    if (!o) return id;
+    if (o['Record Status'] === 'Archived' && o['Archived To']) id = o['Archived To']; else return id;
+  }
+  return id;
+}
+function reindex() {
+  const I = S.idx = { org: {}, prod: {}, trn: {}, rec: {}, recByTrn: {}, fac: {} };
+  S.orgs.forEach(o => { I.org[o['Org ID']] = o; });
+  S.products.forEach(p => { I.prod[p['Product ID']] = p; });
+  S.trainings.forEach(t => { I.trn[t['Training ID']] = t; });
+  S.facilitators.forEach(f => { I.fac[f['Name']] = f; });
+  S.receipts.forEach(r => { I.rec[r['Receipt ID']] = r; (I.recByTrn[r['Training ID']] = I.recByTrn[r['Training ID']] || []).push(r); });
+  Object.keys(I.recByTrn).forEach(k => I.recByTrn[k].sort((a, b) => (a['Received On'] + a['Receipt ID']).localeCompare(b['Received On'] + b['Receipt ID'])));
+}
+function productName(pid) { const p = S.idx.prod[pid]; return p ? p['Product Name'] : pid; }
+function orgName(oid) { const o = S.idx.org[oid]; return o ? o['Org Name'] : oid; }
+function brandTitle() { return S.cfg.toolTitle || 'Trainings'; }
+function clientLabel(t) { return t['Org ID'] ? orgName(resolveOrgId(t['Org ID'])) : (t['Training Type'] === 'Open batch' ? 'Open batch' : '—'); }
+function facList(t) { return String(t['Facilitators'] || '').split(',').map(x => x.trim()).filter(Boolean); }
+function lastDay(t) { return t['End Date'] || t['Start Date']; }
+function dateRange(t) { return t['End Date'] && t['End Date'] !== t['Start Date'] ? fmtD(t['Start Date']) + ' – ' + fmtD(t['End Date']) : fmtD(t['Start Date']); }
+function num(s) { const x = parseFloat(String(s || '').replace(/,/g, '')); return isNaN(x) ? 0 : x; }
+function rupees(n) { return '₹' + Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 }); }
+function minLevel(pid) { const p = S.idx.prod[pid]; const n = p ? parseInt(p['Minimum Facilitator Level'], 10) : NaN; return isNaN(n) ? 0 : n; }
+function statusClass(st) { return st === 'Planned' ? 'st-new' : st === 'Confirmed' ? 'st-prog' : st === 'Delivered' ? 'st-conv' : 'st-ni'; }
+function statusBadge(st) { return '<span class="badge ' + statusClass(st) + '">' + esc(st) + '</span>'; }
+
+// Fee figures, worked out when the page loads and never stored.
+function calc(t) {
+  const basis = t['Fee Basis'], fee = num(t['Fee Amount']);
+  let total = 0, estimate = false;
+  if (basis === 'Per training') total = fee;
+  else if (basis === 'Per participant') {
+    const hasActual = String(t['Actual Participants'] || '').trim() !== '';
+    estimate = !hasActual;
+    total = fee * num(hasActual ? t['Actual Participants'] : t['Expected Participants']);
+  }
+  const received = (S.idx.recByTrn[t['Training ID']] || []).reduce((s, r) => s + num(r['Amount']), 0);
+  const pending = Math.max(0, total - received);
+  let feeStatus = '';
+  if (t['Status'] !== 'Cancelled') {
+    feeStatus = basis === 'Free' ? 'Free' : received >= total ? 'Paid' : received > 0 ? 'Part-paid' : t['Invoice No'] ? 'Invoiced' : 'Not invoiced';
+  }
+  let age = null;
+  if (t['Status'] === 'Delivered' && pending > 0) age = daysBetween(t['Invoice Date'] || lastDay(t), todayStr());
+  return { total: total, estimate: estimate, received: received, pending: pending, excess: Math.max(0, received - total), feeStatus: feeStatus, age: age };
+}
+function feeBadge(c) { return c.feeStatus ? '<span class="badge' + (c.feeStatus === 'Paid' ? ' st-conv' : '') + '">' + esc(c.feeStatus) + '</span>' : ''; }
+
+/* ---- core-shared v2 (from crm_v2.html): branding, chrome, router, forms ---- */
+/* ---------- branding from Config ---------- */
+function mixHex(a, b, t) {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const ch = s => { const x = (pa >> s) & 255, y = (pb >> s) & 255; return Math.round(x + (y - x) * t); };
+  return '#' + [16, 8, 0].map(s => ch(s).toString(16).padStart(2, '0')).join('');
+}
+function applyBrand() {
+  const c = S.cfg.primaryColour || '';
+  document.title = brandTitle();
+  if (!/^#[0-9a-f]{6}$/i.test(c)) return;
+  const st = document.documentElement.style;
+  st.setProperty('--primary', c);
+  st.setProperty('--primary-dark', mixHex(c, '#000000', 0.25));
+  st.setProperty('--primary-soft', mixHex(c, '#ffffff', 0.88));
+}
+
+/* ---------- chrome, router, sheets, toasts ---------- */
+function setChrome(o) {
+  $('#hTitle').textContent = o.title || '';
+  $('#hSub').textContent = o.sub || '';
+  $('#backBtn').hidden = !o.back;
+  $('#hActions').innerHTML = o.actions || '';
+}
+function setBar(html) {
+  const b = $('#bar');
+  if (!html) { b.hidden = true; b.innerHTML = ''; return; }
+  b.hidden = false;
+  b.innerHTML = '<div class="bar-error" id="barError"></div><div class="bar-inner">' + html + '</div>';
+}
+function show(html, bar) { $('#view').innerHTML = html; setBar(bar); }
+function page(title, back, actions) { document.body.classList.remove('spec-view'); setChrome({ title: title, sub: '', back: back !== false, actions: actions || '' }); }
+// The header refresh button appears only while the Refresh feature (F17) is present.
+function refreshBtn() { return REG.acts['f17.refresh'] ? '<button class="icon-btn refresh" data-act="f17.refresh" aria-label="Refresh" title="Refresh">&#8635;</button>' : ''; }
+
+const navStack = [];
+let replacing = false;
+function go(path) { location.hash = '#/' + path; }
+function replace(path) { replacing = true; location.replace('#/' + path); }
+function back() { if (navStack.length > 1) history.back(); else location.hash = '#/home'; }
+function onHash() {
+  const h = location.hash || '#/home';
+  if (replacing && navStack.length) navStack[navStack.length - 1] = h;
+  else if (navStack.length >= 2 && navStack[navStack.length - 2] === h) navStack.pop();
+  else if (navStack[navStack.length - 1] !== h) navStack.push(h);
+  replacing = false;
+  route();
+}
+function route() {
+  closeSheet();
+  const h = (location.hash || '#/home').replace(/^#\/?/, '');
+  const parts = h.split('/').map(decodeURIComponent);
+  const name = parts.shift() || 'home';
+  const fn = REG.routes[name] || REG.routes.home;
+  window.scrollTo(0, 0);
+  try { fn(parts); }
+  catch (e) { console.error(e); show('<div class="empty">Something went wrong showing this page.</div>'); }
+}
+function openSheet(html) { $('#sheetHost').innerHTML = '<div class="sheet-back" data-act="core.closeSheet"><div class="sheet">' + html + '</div></div>'; }
+function closeSheet() { $('#sheetHost').innerHTML = ''; }
+let toastTimer = null;
+function toast(msg) {
+  let t = $('#toast');
+  if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
+}
+function confirmed(title, sub) {
+  const o = $('#confirmOverlay');
+  $('#confirmTitle').textContent = title; $('#confirmSub').textContent = sub || '';
+  o.classList.add('show');
+  $$('circle, path', o).forEach(el => { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
+  setTimeout(() => o.classList.remove('show'), 1500);
+}
+
+/* ---------- delegated events ---------- */
+document.addEventListener('click', e => {
+  const chip = e.target.closest('.chips .chip[data-v]');
+  if (chip && !chip.classList.contains('disabled')) {
+    const g = chip.closest('.chips');
+    if (g.hasAttribute('data-multi')) chip.classList.toggle('selected');
+    else { $$('.chip', g).forEach(c => c.classList.remove('selected')); chip.classList.add('selected'); }
+    g.dispatchEvent(new CustomEvent('chipchange', { bubbles: true, detail: { v: chip.dataset.v } }));
+    return;
+  }
+  const item = e.target.closest('.combo-item');
+  if (item) { comboPick(item.closest('.combo'), item.dataset.v); return; }
+  $$('.combo-list').forEach(l => { if (!l.closest('.combo').contains(e.target)) l.hidden = true; });
+  const a = e.target.closest('[data-act]');
+  if (a && REG.acts[a.dataset.act]) REG.acts[a.dataset.act](a, e);
+});
+REG.acts['core.closeSheet'] = (el, e) => { if (e.target === el) closeSheet(); };
+REG.acts['core.back'] = () => back();
+$('#backBtn').addEventListener('click', back);
+
+/* ---------- form helpers ---------- */
+function labelHtml(label, req) { return '<label class="field-label">' + esc(label) + (req ? '' : ' <span class="optional">optional</span>') + '</label>'; }
+function fieldWrap(key, inner, o) {
+  return '<div class="field" data-f="' + escA(key) + '"' + (o.req ? ' data-req="1"' : '') + (o.cond ? ' data-cond="' + escA(o.cond) + '"' : '') + (o.hidden ? ' hidden' : '') + '>' + inner + '</div>';
+}
+function fText(key, label, o) {
+  o = o || {};
+  const v = o.value || '';
+  const inner = labelHtml(label, o.req) + (o.area
+    ? '<textarea data-k="' + escA(key) + '" rows="' + (o.rows || 3) + '" placeholder="' + escA(o.placeholder || '') + '">' + esc(v) + '</textarea>'
+    : '<input type="' + (o.type || 'text') + '" data-k="' + escA(key) + '" value="' + escA(v) + '" placeholder="' + escA(o.placeholder || '') + '" autocomplete="off">');
+  return fieldWrap(key, inner, o);
+}
+function fDate(key, label, o) {
+  o = o || {};
+  const inner = labelHtml(label, o.req) + '<input type="date" data-k="' + escA(key) + '" value="' + escA(o.value || '') + '"' + (o.min ? ' min="' + escA(o.min) + '"' : '') + (o.max ? ' max="' + escA(o.max) + '"' : '') + '>';
+  return fieldWrap(key, inner, o);
+}
+function optVal(x) { return typeof x === 'string' ? { v: x, l: x } : x; }
+function fSelect(key, label, options, o) {
+  o = o || {};
+  const opts = options.map(optVal).map(x => '<option value="' + escA(x.v) + '"' + (x.v === o.value ? ' selected' : '') + '>' + esc(x.l) + '</option>').join('');
+  const inner = labelHtml(label, o.req) + '<select data-k="' + escA(key) + '"><option value="">' + esc(o.blank || (o.req ? 'Select…' : '—')) + '</option>' + opts + '</select>';
+  return fieldWrap(key, inner, o);
+}
+function fChips(key, label, options, o) {
+  o = o || {};
+  const sel = Array.isArray(o.value) ? o.value : (o.value ? [o.value] : []);
+  const chips = options.map(optVal).map(x => '<div class="chip' + (sel.indexOf(x.v) >= 0 ? ' selected' : '') + (x.disabled ? ' disabled' : '') + '" data-v="' + escA(x.v) + '">' + esc(x.l) + '</div>').join('');
+  const inner = labelHtml(label, o.req) + '<div class="chips"' + (o.multi ? ' data-multi="1"' : '') + '>' + chips + '</div>';
+  return fieldWrap(key, inner, o);
+}
+// Chips for six options or fewer, a dropdown for longer lists (design spec).
+function fChoice(key, label, options, o) {
+  o = o || {};
+  return (o.multi || options.length <= 6) ? fChips(key, label, options, o) : fSelect(key, label, options, o);
+}
+const COMBOS = {};
+let comboN = 0;
+function fCombo(key, label, items, o) {
+  o = o || {};
+  const id = 'cb' + (++comboN);
+  COMBOS[id] = items;
+  const cur = items.find(x => x.v === o.value);
+  const inner = labelHtml(label, o.req) + '<div class="combo" data-combo="' + id + '"><input type="text" class="combo-in" autocomplete="off" placeholder="' + escA(o.placeholder || 'Start typing…') + '" value="' + escA(cur ? cur.l : '') + '"><input type="hidden" data-k="' + escA(key) + '" value="' + escA(cur ? cur.v : '') + '"><div class="combo-list" hidden></div></div>';
+  return fieldWrap(key, inner, o);
+}
+function comboRender(box) {
+  const items = COMBOS[box.dataset.combo] || [];
+  const q = $('.combo-in', box).value.trim().toLowerCase();
+  const list = $('.combo-list', box);
+  const m = items.filter(x => !q || (x.l + ' ' + (x.s || '')).toLowerCase().indexOf(q) >= 0).slice(0, 40);
+  list.innerHTML = m.length ? m.map(x => '<div class="combo-item" data-v="' + escA(x.v) + '">' + esc(x.l) + (x.s ? '<span class="s">' + esc(x.s) + '</span>' : '') + '</div>').join('') : '<div class="combo-empty">No match</div>';
+  list.hidden = false;
+}
+function comboPick(box, v) {
+  const x = (COMBOS[box.dataset.combo] || []).find(i => i.v === v);
+  if (!x) return;
+  $('.combo-in', box).value = x.l; $('[data-k]', box).value = x.v; $('.combo-list', box).hidden = true;
+  box.dispatchEvent(new CustomEvent('combochange', { bubbles: true, detail: { v: x.v } }));
+}
+document.addEventListener('input', e => {
+  if (e.target.classList.contains('combo-in')) { const box = e.target.closest('.combo'); $('[data-k]', box).value = ''; comboRender(box); }
+});
+document.addEventListener('focusin', e => { if (e.target.classList.contains('combo-in')) comboRender(e.target.closest('.combo')); });
+
+function fieldVal(w) {
+  const ch = $('.chips', w);
+  if (ch) { const sel = $$('.chip.selected', ch).map(c => c.dataset.v); return ch.hasAttribute('data-multi') ? sel : (sel[0] || ''); }
+  const i = $('[data-k]', w);
+  return i ? i.value.trim() : '';
+}
+function fieldHidden(w) { return w.hidden || !!w.closest('[hidden]'); }
+// Hidden conditional fields are left out of the result (so they are never submitted).
+function readForm(root) {
+  const o = {};
+  $$('.field[data-f]', root).forEach(w => { if (!fieldHidden(w)) o[w.dataset.f] = fieldVal(w); });
+  return o;
+}
+function validateForm(root) {
+  const miss = $$('.field[data-req]', root).filter(w => !fieldHidden(w)).filter(w => { const v = fieldVal(w); return Array.isArray(v) ? !v.length : v === ''; });
+  if (!miss.length) return null;
+  miss[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  miss[0].classList.add('flash');
+  setTimeout(() => miss[0].classList.remove('flash'), 2000);
+  return 'Please complete: ' + miss.map(w => $('.field-label', w).textContent.trim()).join(', ');
+}
+function barError(msg) { const e = $('#barError'); if (e) { e.textContent = msg || ''; e.style.display = msg ? 'block' : 'none'; } }
+// Runs a save: validation message, busy button, and any error shown above the button.
+async function runSave(btn, fn) {
+  barError('');
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try { await fn(); }
+  catch (e) { barError(e.message); }
+  finally { btn.disabled = false; btn.textContent = label; }
+}
+
+
+/* ---- core-shared v2 (from crm_v2.html): home screen and settings screen ---- */
+/* ---------- home screen shell: tabs and banners register themselves ---------- */
+REG.routes.home = function () {
+  setChrome({
+    title: brandTitle(), sub: S.cfg.workspaceName || '', back: false,
+    actions: refreshBtn() + (REG.addMenu.length ? '<button class="btn btn-sm btn-primary" data-act="core.add">+ Add</button>' : '') + '<button class="link-btn" data-act="core.settings">Settings</button>'
+  });
+  const tabs = REG.homeTabs.slice().sort((a, b) => a.order - b.order);
+  if (!tabs.length) { show('<div class="empty">Nothing to show yet.</div>'); return; }
+  let cur = tabs.find(t => t.id === S.ui.tab) || tabs[0];
+  S.ui.tab = cur.id;
+  show(REG.homeBanners.map(f => f()).join('')
+    + '<div class="identity-bar"><span>Using as <strong>' + esc(S.me) + '</strong></span><button class="link-btn" data-act="core.who">Not you?</button></div>'
+    + '<div class="tabs">' + tabs.map(t => '<button class="tab' + (t.id === cur.id ? ' active' : '') + '" data-act="core.tab" data-id="' + escA(t.id) + '">' + esc(t.label) + '</button>').join('') + '</div>'
+    + '<div id="tabBody"></div>');
+  cur.render($('#tabBody'));
+};
+REG.acts['core.tab'] = el => { S.ui.tab = el.dataset.id; REG.routes.home(); };
+REG.acts['core.settings'] = () => go('settings');
+REG.acts['core.add'] = () => {
+  openSheet(REG.addMenu.slice().sort((a, b) => a.order - b.order).map(m => '<button class="btn" data-act="core.addgo" data-route="' + escA(m.route) + '">' + esc(m.label) + '</button>').join(''));
+};
+REG.acts['core.addgo'] = el => { closeSheet(); go(el.dataset.route); };
+
+/* ---------- settings screen: features add their own links ---------- */
+REG.routes.settings = function () {
+  page('Settings');
+  const groups = {};
+  REG.settingsItems.slice().sort((a, b) => a.order - b.order).forEach(it => { (groups[it.group] = groups[it.group] || []).push(it); });
+  show(Object.keys(groups).map(g => '<div class="card"><div class="card-title">' + esc(g) + '</div><div class="list" style="box-shadow:none;border:none;margin:0">'
+    + groups[g].map(it => '<a class="row" href="#/' + escA(it.route) + '"><div class="row-title">' + esc(it.label) + '</div></a>').join('') + '</div></div>').join('')
+    + '<div class="card"><div class="card-title">This device</div>'
+    + '<div class="row-top" style="margin-bottom:6px"><div>Using as <strong>' + esc(S.me) + '</strong></div><button class="link-btn" data-act="core.who">Change</button></div>'
+    + '<div class="row-top"><div class="muted">Fetch the latest data</div><button class="link-btn" data-act="core.reload">Reload</button></div>'
+    + '<div class="row-top"><div class="muted">Forget the team key on this device</div><button class="link-btn" data-act="core.forget">Disconnect</button></div></div>');
+};
+
+
+/* ---------- shared renderers ---------- */
+function trnRowHtml(t, o) {
+  o = o || {};
+  const c = calc(t);
+  const facs = facList(t);
+  return '<a class="row" href="#/training/' + escA(t['Training ID']) + '"><div class="row-top"><div style="min-width:0"><div class="row-title">' + esc(clientLabel(t)) + '</div>'
+    + '<div class="row-sub">' + esc(productName(t['Product ID'])) + ' · ' + esc(dateRange(t)) + ' · ' + esc(t['Mode']) + '</div>'
+    + '<div class="row-sub">' + (facs.length ? esc(facs.join(', ')) : 'No facilitator yet') + '</div>'
+    + (o.note ? '<div class="small ' + (o.noteClass || 'muted') + '" style="margin-top:2px">' + esc(o.note) + '</div>' : '') + '</div>'
+    + '<div class="row-tags" style="margin:0;justify-content:flex-end">' + statusBadge(t['Status']) + (o.fee ? feeBadge(c) : '') + (o.pending && c.pending > 0 ? '<span class="badge">' + esc(rupees(c.pending)) + '</span>' : '') + '</div></div></a>';
+}
+function listHtml(rows, mk) { return '<div class="list">' + rows.map(mk).join('') + '</div>'; }
+function setReq(w, on) {
+  if (!w) return;
+  if (on) w.setAttribute('data-req', '1'); else w.removeAttribute('data-req');
+  const lab = $('.field-label', w); if (!lab) return;
+  const o = $('.optional', lab); if (o) o.remove();
+  if (!on) lab.insertAdjacentHTML('beforeend', ' <span class="optional">optional</span>');
+}
+
+
+/* ==== BEGIN F02 — Upcoming ================================================== */
+/* @spec F02
+ * Feature: Upcoming
+ * Status: New
+ * Screen: Home > Upcoming
+ * Delta: New home tab listing trainings that are still ahead, soonest first, each showing the client, product, dates, mode, facilitators and whether it is still Planned or already Confirmed.
+ * Validations: Form: none.
+ * Calculations: A training is upcoming when its Status is Planned or Confirmed and its End Date (or Start Date when there is no End Date) is today or later [CONFIRMED]. The list is sorted by Start Date, soonest first [CONFIRMED]. Each row says how many days away the start is [CONFIRMED]. Cancelled trainings never appear [CONFIRMED].
+ * Dependencies: Trainings; Products; Facilitators; Orgs (Org Master); F06 (row opens the training page).
+ * @end */
+REG.homeTabs.push({ id: 'upcoming', label: 'Upcoming', order: 1, render: f02_render });
+function f02_items() {
+  return S.trainings.filter(t => (t['Status'] === 'Planned' || t['Status'] === 'Confirmed') && lastDay(t) >= todayStr())
+    .sort((a, b) => (a['Start Date'] + a['Training ID']).localeCompare(b['Start Date'] + b['Training ID']));
+}
+function f02_render(host) {
+  const rows = f02_items();
+  host.innerHTML = '<div class="count-line">' + plural(rows.length, 'upcoming training') + '</div>'
+    + (rows.length ? listHtml(rows, t => trnRowHtml(t, { note: t['Start Date'] > todayStr() ? 'Starts ' + agoText(t['Start Date']) : 'On now' }))
+      : '<div class="empty">Nothing coming up.' + (REG.routes['new-training'] ? '<br><a class="btn btn-primary" href="#/new-training">Add a training</a>' : '') + '</div>');
+}
+/* ==== END F02 ================================================================ */
+
+/* ==== BEGIN F03 — Needs action ============================================== */
+/* @spec F03
+ * Feature: Needs action
+ * Status: New
+ * Screen: Home > Needs action
+ * Delta: New home tab with two groups of trainings that are waiting for someone: ones whose date has passed but whose status was never updated, and delivered ones where the invoice or the fee still needs attention.
+ * Validations: Form: none.
+ * Calculations: Group 1, Update the status: Status is Planned or Confirmed and the End Date (or Start Date) is before today; the longest overdue is listed first [CONFIRMED]. Group 2, Invoice or chase the fee: Status is Delivered and the fee status is Not invoiced, Invoiced or Part-paid; the oldest first [CONFIRMED]. Cancelled, Free and fully paid trainings never appear [CONFIRMED].
+ * Dependencies: Trainings; Receipts; F06 (row opens the training page).
+ * @end */
+REG.homeTabs.push({ id: 'action', label: 'Needs action', order: 2, render: f03_render });
+function f03_groups() {
+  const g1 = S.trainings.filter(t => (t['Status'] === 'Planned' || t['Status'] === 'Confirmed') && lastDay(t) < todayStr())
+    .sort((a, b) => lastDay(a).localeCompare(lastDay(b)));
+  const g2 = S.trainings.filter(t => t['Status'] === 'Delivered' && ['Not invoiced', 'Invoiced', 'Part-paid'].indexOf(calc(t).feeStatus) >= 0)
+    .map(t => ({ t: t, c: calc(t) })).sort((a, b) => (b.c.age || 0) - (a.c.age || 0));
+  return { g1: g1, g2: g2 };
+}
+function f03_render(host) {
+  const g = f03_groups();
+  if (!g.g1.length && !g.g2.length) { host.innerHTML = '<div class="empty">Nothing needs action right now.</div>'; return; }
+  host.innerHTML = (g.g1.length ? '<div class="card-title" style="margin:4px 2px 8px">Update the status (' + g.g1.length + ')</div>'
+    + listHtml(g.g1, t => trnRowHtml(t, { note: 'Ended ' + agoText(lastDay(t)) + ', still ' + t['Status'], noteClass: 'overdue' })) : '')
+    + (g.g2.length ? '<div class="card-title" style="margin:4px 2px 8px">Invoice or chase the fee (' + g.g2.length + ')</div>'
+      + listHtml(g.g2, x => trnRowHtml(x.t, { fee: true, pending: true, note: x.c.feeStatus === 'Not invoiced' ? 'Not invoiced yet' : (x.c.age + ' days since ' + (x.t['Invoice Date'] ? 'the invoice' : 'delivery')) })) : '');
+}
+/* ==== END F03 ================================================================ */
+
+/* ==== BEGIN F04 — Pending fees ============================================== */
+/* @spec F04
+ * Feature: Pending fees
+ * Status: New
+ * Screen: Home > Pending fees
+ * Delta: New home tab showing the fees still to be received on delivered trainings, grouped by client, with the total at the top.
+ * Validations: Form: none.
+ * Calculations: Total Fee is 0 for Free, the Fee Amount for Per training, and Fee Amount times Actual Participants for Per participant (using Expected Participants as an estimate until the actual is filled) [CONFIRMED]. Received is the sum of the receipts. Pending is Total Fee minus Received and never below 0 [CONFIRMED]. A training is listed when it is Delivered and Pending is above 0; Cancelled and Free trainings are left out [CONFIRMED]. Within a client the oldest comes first, and clients are ordered by their oldest pending training [CONFIRMED]. Age is counted from the Invoice Date, or from the training's last day when there is no invoice yet [CONFIRMED].
+ * Dependencies: Trainings; Receipts; Orgs (Org Master); F06 (row opens the training page).
+ * @end */
+REG.homeTabs.push({ id: 'pending', label: 'Pending fees', order: 3, render: f04_render });
+function f04_render(host) {
+  const rows = S.trainings.filter(t => t['Status'] === 'Delivered').map(t => ({ t: t, c: calc(t) })).filter(x => x.c.pending > 0);
+  if (!rows.length) { host.innerHTML = '<div class="empty">No fees pending.</div>'; return; }
+  const groups = {};
+  rows.forEach(x => { const k = clientLabel(x.t); (groups[k] = groups[k] || []).push(x); });
+  const list = Object.keys(groups).map(k => {
+    const items = groups[k].sort((a, b) => (b.c.age || 0) - (a.c.age || 0));
+    return { name: k, items: items, sum: items.reduce((s, x) => s + x.c.pending, 0), oldest: items[0].c.age || 0 };
+  }).sort((a, b) => b.oldest - a.oldest);
+  const total = rows.reduce((s, x) => s + x.c.pending, 0);
+  host.innerHTML = '<div class="card"><div class="card-title">Total pending</div><div class="org-name" style="margin:0">' + esc(rupees(total)) + '</div><div class="muted small">' + plural(rows.length, 'training') + ' · ' + plural(list.length, 'client') + '</div></div>'
+    + list.map(g => '<div class="row-top" style="margin:6px 2px 8px"><div class="card-title" style="margin:0">' + esc(g.name) + '</div><div class="small muted">' + esc(rupees(g.sum)) + '</div></div>'
+      + listHtml(g.items, x => trnRowHtml(x.t, { fee: true, pending: true, note: x.c.age + ' days · ' + (x.t['Invoice No'] ? 'Invoice ' + x.t['Invoice No'] : 'Not invoiced yet') }))).join('');
+}
+/* ==== END F04 ================================================================ */
+
+/* ==== BEGIN F05 — All trainings ============================================= */
+/* @spec F05
+ * Feature: All trainings
+ * Status: New
+ * Screen: Home > All trainings
+ * Delta: New home tab listing every training with a search box and filters for status, product and facilitator.
+ * Validations: Form: none; every filter is optional.
+ * Calculations: Search matches client, product, facilitators, invoice number and venue, ignoring case; several words must all match [CONFIRMED]. The filters combine with AND [CONFIRMED]. The Facilitator filter lists every facilitator, active or not, and matches trainings they are on [CONFIRMED]. The list is sorted by Start Date, newest first, and shows 60 rows at a time [CONFIRMED].
+ * Dependencies: Trainings; Products; Facilitators; Orgs (Org Master); F06 (row opens the training page).
+ * @end */
+const F05 = { q: '', status: '', product: '', fac: '', open: false, shown: 60 };
+REG.homeTabs.push({ id: 'all', label: 'All trainings', order: 4, render: f05_render });
+function f05_count() { return ['status', 'product', 'fac'].filter(k => F05[k]).length; }
+function f05_match(t) {
+  if (F05.q) {
+    const hay = [clientLabel(t), productName(t['Product ID']), t['Facilitators'], t['Invoice No'], t['Venue']].join(' ').toLowerCase();
+    if (!F05.q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.indexOf(w) >= 0)) return false;
+  }
+  if (F05.status && t['Status'] !== F05.status) return false;
+  if (F05.product && t['Product ID'] !== F05.product) return false;
+  if (F05.fac && facList(t).indexOf(F05.fac) < 0) return false;
+  return true;
+}
+function f05_select(id, label, opts, val) {
+  return '<div class="field"><label class="field-label">' + esc(label) + '</label><select id="' + id + '"><option value="">All</option>'
+    + opts.map(o => { const x = optVal(o); return '<option value="' + escA(x.v) + '"' + (x.v === val ? ' selected' : '') + '>' + esc(x.l) + '</option>'; }).join('') + '</select></div>';
+}
+function f05_render(host) {
+  host.innerHTML = '<div class="searchrow"><input type="search" id="f05q" placeholder="Search client, product, facilitator, invoice" value="' + escA(F05.q) + '">'
+    + '<button class="btn btn-sm" id="f05fbtn">Filters' + (f05_count() ? ' (' + f05_count() + ')' : '') + '</button></div>'
+    + '<div class="filter-panel" id="f05panel"' + (F05.open ? '' : ' hidden') + '>'
+    + f05_select('f05status', 'Status', STATUSES, F05.status)
+    + f05_select('f05product', 'Product', S.products.map(p => ({ v: p['Product ID'], l: p['Product Name'] })), F05.product)
+    + f05_select('f05fac', 'Facilitator', S.facilitators.map(f => f['Name']).sort((a, b) => a.localeCompare(b)), F05.fac)
+    + '<div class="wide" style="align-self:end"><button class="link-btn" id="f05clear">Clear filters</button></div></div>'
+    + '<div class="count-line" id="f05count"></div><div id="f05list"></div>';
+  $('#f05q').addEventListener('input', e => { F05.q = e.target.value; F05.shown = 60; f05_list(); });
+  $('#f05fbtn').addEventListener('click', () => { F05.open = !F05.open; $('#f05panel').hidden = !F05.open; });
+  [['f05status', 'status'], ['f05product', 'product'], ['f05fac', 'fac']].forEach(p => {
+    $('#' + p[0]).addEventListener('change', e => { F05[p[1]] = e.target.value; F05.shown = 60; $('#f05fbtn').textContent = 'Filters' + (f05_count() ? ' (' + f05_count() + ')' : ''); f05_list(); });
+  });
+  $('#f05clear').addEventListener('click', () => { ['status', 'product', 'fac'].forEach(k => { F05[k] = ''; }); f05_render(host); });
+  f05_list();
+}
+function f05_list() {
+  const m = S.trainings.filter(f05_match).sort((a, b) => (b['Start Date'] + b['Training ID']).localeCompare(a['Start Date'] + a['Training ID']));
+  $('#f05count').textContent = plural(m.length, 'training');
+  if (!S.trainings.length) { $('#f05list').innerHTML = '<div class="empty">No trainings yet.' + (REG.routes['new-training'] ? '<br><a class="btn btn-primary" href="#/new-training">Add the first one</a>' : '') + '</div>'; return; }
+  if (!m.length) { $('#f05list').innerHTML = '<div class="empty">Nothing matches.</div>'; return; }
+  $('#f05list').innerHTML = listHtml(m.slice(0, F05.shown), t => trnRowHtml(t, { fee: true }))
+    + (m.length > F05.shown ? '<div class="center"><button class="btn" id="f05more">Show more</button></div>' : '');
+  const more = $('#f05more'); if (more) more.addEventListener('click', () => { F05.shown += 60; f05_list(); });
+}
+/* ==== END F05 ================================================================ */
+
+/* ==== BEGIN F06 — Training page and status change =========================== */
+/* @spec F06
+ * Feature: Training page and status change
+ * Status: New
+ * Screen: Training page (opened from any list)
+ * Delta: New screen showing one training: client, product, dates, mode, venue, facilitators, participants, fee, invoice, received and pending amounts, receipts, links and feedback summary. The status can be changed from here.
+ * Validations: Form: none on the page itself. Delivered is greyed out while the training has not started. The server checks every status change.
+ * Calculations: Tapping Planned saves at once. Tapping Confirmed saves at once when a facilitator is already on the training, otherwise the edit form opens with Confirmed chosen so a facilitator can be added [CONFIRMED]. Tapping Delivered opens the edit form with Delivered chosen so the actual participants, links and summary can be added [CONFIRMED]. Tapping Cancelled asks for confirmation first and keeps all receipts [CONFIRMED]. A cancelled training that has receipts shows a notice that money was received and that any refund is handled in Tally [CONFIRMED]. Total fee shows as an estimate until the actual participants are filled for a Per participant fee [CONFIRMED]. The pending age is shown for delivered trainings with an amount pending [CONFIRMED].
+ * Dependencies: Trainings; Receipts; Products; Facilitators; Orgs (Org Master); F07 and F10 (forms); F08 (receipts).
+ * @end */
+REG.routes.training = function (args) {
+  const t = S.idx.trn[args[0]];
+  page(t ? clientLabel(t) : 'Training', true, refreshBtn());
+  if (!t) { show('<div class="empty">That training could not be found.</div>'); return; }
+  const c = calc(t), id = t['Training ID'];
+  const facs = facList(t);
+  const rec = S.idx.recByTrn[id] || [];
+  const free = t['Fee Basis'] === 'Free';
+  const future = t['Start Date'] > todayStr();
+  const kv = rows => '<dl class="kv">' + rows.map(r => '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>').join('') + '</dl>';
+  const details = [['Dates', esc(dateRange(t))], ['Mode', esc(t['Mode']) + (t['Venue'] ? ' · ' + esc(t['Venue']) : '')],
+    ['Facilitators', facs.length ? facs.map(n => { const f = S.idx.fac[n]; return esc(n) + (f ? ' <span class="muted small">L' + esc(f['Level']) + '</span>' : ''); }).join('<br>') : '—'],
+    ['Participants', (t['Actual Participants'] !== '' ? esc(t['Actual Participants']) + ' attended' : (t['Expected Participants'] !== '' ? esc(t['Expected Participants']) + ' expected' : '—'))]];
+  const fee = free ? [['Fee', 'Free']] : [
+    ['Fee', esc(rupees(num(t['Fee Amount']))) + (t['Fee Basis'] === 'Per participant' ? ' per participant' : ' for the training')],
+    ['Total fee', esc(rupees(c.total)) + (c.estimate ? ' <span class="muted small">estimate, from expected participants</span>' : '')],
+    ['Received', esc(rupees(c.received))], ['Pending', '<b>' + esc(rupees(c.pending)) + '</b>'],
+    ['Invoice', t['Invoice No'] ? esc(t['Invoice No']) + (t['Invoice Date'] ? ' · ' + esc(fmtD(t['Invoice Date'])) : '') : 'Not raised yet']];
+  if (c.age !== null) fee.push(['Pending for', plural(c.age, 'day')]);
+  const links = [];
+  if (t['Feedback Link']) links.push('<a href="' + escA(t['Feedback Link']) + '" target="_blank" rel="noopener">Feedback</a>');
+  if (t['Folder Link']) links.push('<a href="' + escA(t['Folder Link']) + '" target="_blank" rel="noopener">Folder</a>');
+  const html = (t['Status'] === 'Cancelled' && c.received > 0 ? '<div class="banner soft">Money was received for this training. Any refund is handled in Tally.</div>' : '')
+    + '<div class="card"><div class="org-name">' + esc(clientLabel(t)) + '</div><div>' + esc(productName(t['Product ID'])) + '</div>'
+    + '<div class="badges">' + statusBadge(t['Status']) + feeBadge(c) + (t['Training Type'] === 'Open batch' ? '<span class="badge tag">Open batch</span>' : '') + '</div>'
+    + '<div class="field-label" style="margin:12px 0 8px">Change status</div><div style="display:flex;flex-wrap:wrap;gap:8px">'
+    + STATUSES.map(st => '<button class="chip' + (st === t['Status'] ? ' selected' : '') + (st === 'Delivered' && future ? ' disabled' : '') + '" data-act="f06.status" data-id="' + escA(id) + '" data-v="' + escA(st) + '">' + esc(st) + '</button>').join('') + '</div></div>'
+    + '<div class="card">' + kv(details) + '</div>'
+    + '<div class="card"><div class="card-title">Fee</div>' + kv(fee) + '</div>'
+    + (free ? '' : '<div class="card"><div class="card-title">Receipts</div>' + (rec.length ? rec.map(r => '<div class="int"><div class="int-top"><div><b>' + esc(rupees(num(r['Amount']))) + '</b> · ' + esc(fmtD(r['Received On'])) + (r['Mode'] ? ' · ' + esc(r['Mode']) : '') + '</div>'
+      + '<a class="link-btn int-edit" href="#/edit-receipt/' + escA(r['Receipt ID']) + '">Edit</a></div>'
+      + (r['Reference'] ? '<div class="small muted">' + esc(r['Reference']) + '</div>' : '') + '</div>').join('') : '<div class="muted">No receipts yet.</div>')
+      + (c.excess > 0 ? '<div class="small muted" style="margin-top:8px">' + esc(rupees(c.excess)) + ' received above the total fee.</div>' : '') + '</div>')
+    + (links.length || t['Feedback Summary'] ? '<div class="card"><div class="card-title">Feedback and files</div>' + (links.length ? '<div class="c-links">' + links.join('') + '</div>' : '')
+      + (t['Feedback Summary'] ? '<div class="about-text" style="margin-top:6px">' + esc(t['Feedback Summary']) + '</div>' : '') + '</div>' : '')
+    + '<div class="card"><div class="meta">Added by ' + esc(t['Created By']) + ' · ' + esc(fmtD(t['Created On'])) + '</div></div>';
+  show(html, (free ? '' : '<a class="btn btn-primary" href="#/add-receipt/' + escA(id) + '">Add receipt</a>') + '<a class="btn" href="#/edit-training/' + escA(id) + '">Edit</a>');
+};
+async function f06_save(id, fields) {
+  const d = await api('updateTraining', { by: S.me, trainingId: id, fields: fields }, true);
+  upsert(S.trainings, 'Training ID', d.training); reindex(); REG.routes.training([id]);
+}
+REG.acts['f06.status'] = async el => {
+  const id = el.dataset.id, st = el.dataset.v, t = S.idx.trn[id];
+  if (!t || st === t['Status'] || el.classList.contains('disabled')) return;
+  if (st === 'Delivered') { go('edit-training/' + id + '/Delivered'); return; }
+  if (st === 'Confirmed' && !facList(t).length) { go('edit-training/' + id + '/Confirmed'); return; }
+  if (st === 'Cancelled') {
+    openSheet('<div class="card-title">Cancel this training?</div><button class="btn btn-primary" data-act="f06.cancelyes" data-id="' + escA(id) + '">Yes, cancel it</button><button class="btn" data-act="core.closeSheet">Keep it</button>');
+    return;
+  }
+  try { await f06_save(id, { Status: st }); toast('Status is now ' + st + '.'); } catch (err) { toast(err.message); }
+};
+REG.acts['f06.cancelyes'] = async el => {
+  closeSheet();
+  try { await f06_save(el.dataset.id, { Status: 'Cancelled' }); toast('Cancelled. Receipts are kept.'); } catch (err) { toast(err.message); }
+};
+/* ==== END F06 ================================================================ */
+
+/* ==== Shared training form (used by F07 Add training and F10 Edit training) === */
+function trnProductOptions(current) {
+  const act = S.products.filter(p => isYes(p['Active']));
+  const list = act.slice();
+  if (current && !act.some(p => p['Product ID'] === current) && S.idx.prod[current]) list.push(S.idx.prod[current]);
+  return list.map(p => ({ v: p['Product ID'], l: p['Product Name'] }));
+}
+function trnFacItems(pid, selected) {
+  const min = minLevel(pid);
+  const ok = f => !min || (parseInt(f['Level'], 10) || 0) >= min;
+  const pool = S.facilitators.filter(f => isYes(f['Active']) && selected.indexOf(f['Name']) < 0);
+  const el = pool.filter(ok).sort((a, b) => a['Name'].localeCompare(b['Name']));
+  const lo = pool.filter(f => !ok(f)).sort((a, b) => (parseInt(b['Level'], 10) - parseInt(a['Level'], 10)) || a['Name'].localeCompare(b['Name']));
+  return el.map(f => ({ v: f['Name'], l: f['Name'], s: 'Level ' + f['Level'] })).concat(lo.map(f => ({ v: f['Name'], l: f['Name'], s: 'Level ' + f['Level'] + ' · below the usual level' })));
+}
+function trnFacChip(n) { const f = S.idx.fac[n]; return '<div class="chip selected" data-v="' + escA(n) + '">' + esc(n) + (f ? ' · L' + esc(f['Level']) : '') + '</div>'; }
+function trnFormHtml(t, isNew, startStatus) {
+  const type = t['Training Type'] || 'Client-specific';
+  const status = startStatus || t['Status'] || 'Planned';
+  const orgItems = activeOrgs().sort((a, b) => a['Org Name'].localeCompare(b['Org Name'])).map(o => ({ v: o['Org ID'], l: o['Org Name'], s: [o['Org Type'], o['City']].filter(Boolean).join(' · ') }));
+  const selFacs = facList(t);
+  const cid = 'cb' + (++comboN); COMBOS[cid] = trnFacItems(t['Product ID'] || '', selFacs);
+  const facInner = labelHtml('Facilitators', false) + '<div class="chips fac-sel" data-multi="1">' + selFacs.map(trnFacChip).join('') + '</div>'
+    + '<div class="combo" data-combo="' + cid + '" style="margin-top:8px"><input type="text" class="combo-in" autocomplete="off" placeholder="Add a facilitator…"><input type="hidden" data-k="facPick" value=""><div class="combo-list" hidden></div></div>'
+    + '<div class="small muted fac-note" style="margin-top:6px"></div>';
+  const basis = t['Fee Basis'] || '';
+  return '<div class="card trn-form">'
+    + fChips('Training Type', 'Type', TYPES, { req: true, value: type })
+    + fCombo('Org ID', 'Client', orgItems, { req: type === 'Client-specific', value: t['Org ID'] ? resolveOrgId(t['Org ID']) : '', placeholder: 'Search clients' })
+    + fChoice('Product ID', 'Product', trnProductOptions(t['Product ID']), { req: true, value: t['Product ID'] })
+    + '<div class="two">' + fDate('Start Date', 'Starts on', { req: true, value: t['Start Date'] }) + fDate('End Date', 'Ends on', { value: t['End Date'] }) + '</div>'
+    + fChips('Mode', 'Mode', MODES, { req: true, value: t['Mode'] })
+    + fText('Venue', 'Venue', { value: t['Venue'], hidden: t['Mode'] !== 'In-person' })
+    + (isNew ? '' : fChips('Status', 'Status', STATUSES, { req: true, value: status }))
+    + fieldWrap('Facilitators', facInner, {})
+    + '<div class="two">' + fText('Expected Participants', 'Expected participants', { value: t['Expected Participants'], type: 'number' })
+    + fText('Actual Participants', 'Actual participants', { value: t['Actual Participants'], type: 'number', hidden: status !== 'Delivered' }) + '</div>'
+    + fChips('Fee Basis', 'Fee', BASES, { req: true, value: basis })
+    + fText('Fee Amount', basis === 'Per participant' ? 'Fee per participant (₹)' : 'Fee for the training (₹)', { value: t['Fee Amount'], type: 'number', hidden: !basis || basis === 'Free' })
+    + '<div class="two">' + fText('Invoice No', 'Invoice no', { value: t['Invoice No'], hidden: !basis || basis === 'Free' }) + fDate('Invoice Date', 'Invoice date', { value: t['Invoice Date'], hidden: !basis || basis === 'Free' }) + '</div>'
+    + fText('Feedback Link', 'Feedback link', { value: t['Feedback Link'], type: 'url', placeholder: 'https://' })
+    + fText('Folder Link', 'Folder link', { value: t['Folder Link'], type: 'url', placeholder: 'https://' })
+    + fText('Feedback Summary', 'Feedback summary', { value: t['Feedback Summary'], area: true, rows: 3, hidden: status !== 'Delivered' })
+    + '</div>';
+}
+function trnWire(root, isNew) {
+  const W = k => $('.field[data-f="' + k + '"]', root);
+  const val = k => { const w = W(k); return w ? fieldVal(w) : ''; };
+  const setVal = (k, v) => { const w = W(k), i = w && $('[data-k]', w); if (i) i.value = v; };
+  const setChip = (k, v) => { const w = W(k); if (w) $$('.chip', w).forEach(c => c.classList.toggle('selected', c.dataset.v === v)); };
+  const facBox = $('.fac-sel', root), facCombo = $('.combo', W('Facilitators'));
+  let endAuto = '';
+  function selFacs() { return $$('.chip.selected', facBox).map(c => c.dataset.v); }
+  function facRefresh() {
+    COMBOS[facCombo.dataset.combo] = trnFacItems(val('Product ID'), selFacs());
+    const min = minLevel(val('Product ID'));
+    const low = selFacs().filter(n => { const f = S.idx.fac[n]; return min && f && (parseInt(f['Level'], 10) || 0) < min; });
+    $('.fac-note', root).textContent = low.length ? low.join(', ') + (low.length === 1 ? ' is' : ' are') + ' below Level ' + min + ', the usual level for this product.' : '';
+  }
+  function refresh() {
+    const type = val('Training Type'), mode = val('Mode'), status = W('Status') ? val('Status') : 'Planned', basis = val('Fee Basis');
+    setReq(W('Org ID'), type === 'Client-specific');
+    W('Venue').hidden = mode !== 'In-person';
+    W('Actual Participants').hidden = status !== 'Delivered';
+    W('Feedback Summary').hidden = status !== 'Delivered';
+    setReq(W('Facilitators'), status === 'Confirmed' || status === 'Delivered');
+    const free = !basis || basis === 'Free';
+    W('Fee Amount').hidden = free; W('Invoice No').hidden = free; W('Invoice Date').hidden = free;
+    setReq(W('Fee Amount'), !free);
+    $('.field-label', W('Fee Amount')).firstChild.textContent = basis === 'Per participant' ? 'Fee per participant (₹)' : 'Fee for the training (₹)';
+    setReq(W('Expected Participants'), basis === 'Per participant');
+    setReq(W('Actual Participants'), status === 'Delivered' && basis === 'Per participant');
+    setReq(W('Invoice Date'), !free && !!val('Invoice No'));
+    const ed = $('[data-k]', W('End Date')); ed.min = val('Start Date') || '';
+  }
+  function autoEnd() {
+    const p = S.idx.prod[val('Product ID')], days = p ? parseInt(p['Default Duration (Days)'], 10) : NaN, start = val('Start Date');
+    const ei = $('[data-k]', W('End Date'));
+    if (!isNew || !start || isNaN(days) || days < 2) return;
+    if (ei.value === '' || ei.value === endAuto) {
+      const dt = new Date(parseD(start) + (days - 1) * 86400000);
+      endAuto = dt.toISOString().slice(0, 10); ei.value = endAuto;
+    }
+  }
+  function onProduct() {
+    const p = S.idx.prod[val('Product ID')];
+    if (isNew && p) {
+      if (MODES.indexOf(p['Default Mode']) >= 0) setChip('Mode', p['Default Mode']);
+      if (BASES.indexOf(p['Default Fee Basis']) >= 0) setChip('Fee Basis', p['Default Fee Basis']);
+      setVal('Fee Amount', p['Default Fee Basis'] === 'Free' ? '' : (p['Default Fee Amount'] || ''));
+      endAuto = ''; setVal('End Date', ''); autoEnd();
+    }
+    refresh(); facRefresh();
+  }
+  root.addEventListener('chipchange', ev => {
+    const w = ev.target.closest('.field[data-f]'); if (!w) return;
+    const k = w.dataset.f;
+    if (k === 'Facilitators') { $$('.chip', facBox).forEach(c => { if (!c.classList.contains('selected')) c.remove(); }); facRefresh(); return; }
+    if (k === 'Product ID') { onProduct(); return; }
+    refresh();
+  });
+  root.addEventListener('change', ev => {
+    if (ev.target.closest('.field[data-f="Product ID"]')) onProduct();
+    else if (ev.target.closest('.field[data-f="Start Date"]')) { autoEnd(); refresh(); }
+  });
+  root.addEventListener('input', ev => { if (ev.target.closest('.field[data-f="Invoice No"]')) refresh(); });
+  root.addEventListener('combochange', ev => {
+    if (!ev.target.closest('.field[data-f="Facilitators"]')) return;
+    const n = ev.detail.v;
+    facBox.insertAdjacentHTML('beforeend', trnFacChip(n));
+    $('.combo-in', facCombo).value = ''; $('[data-k]', facCombo).value = '';
+    facRefresh();
+  });
+  refresh(); facRefresh();
+}
+function trnCollect(root) {
+  const f = readForm(root);
+  if (f['Mode'] !== 'In-person') f['Venue'] = '';
+  if (f['Fee Basis'] === 'Free') { f['Fee Amount'] = ''; f['Invoice No'] = ''; f['Invoice Date'] = ''; }
+  return f;
+}
+function trnCheck(f) {
+  if (f['Invoice No'] && !f['Invoice Date']) return 'Please add the invoice date.';
+  if (f['Start Date'] && f['End Date'] && f['End Date'] < f['Start Date']) return 'The end date cannot be earlier than the start date.';
+  return '';
+}
+
+/* ==== BEGIN F07 — Add training ============================================== */
+/* @spec F07
+ * Feature: Add training
+ * Status: New
+ * Screen: Home > Add > New training
+ * Delta: New form to schedule a training. Choosing the product pre-fills the mode, end date, fee basis and fee amount from the product's defaults, and the facilitator picker lists the facilitators who are eligible for that product first.
+ * Validations: Form: type, product, start date, mode and fee are required. Client is required for Client-specific and optional for Open batch. Venue shows only for In-person. Fee amount shows only when the fee is not Free. Expected participants are required for a Per participant fee. The end date cannot be earlier than the start date. The server repeats every check.
+ * Calculations: New trainings start as Planned [CONFIRMED]. The end date is filled as the start date plus the product's default days minus 1, when the default is 2 days or more and the end date has not been typed [CONFIRMED]. Eligible facilitators are active ones whose level is at or above the product's Minimum Facilitator Level; with no minimum, every active facilitator is eligible [CONFIRMED]. Facilitators below that level can still be added, with a notice [CONFIRMED]. Picking a different product on this form pre-fills the defaults again [CONFIRMED]. After saving, the training page opens [CONFIRMED].
+ * Dependencies: Trainings; Products and Members (company sheet); Facilitators; Levels; Orgs (Org Master); F02 to F06 (lists and page).
+ * @end */
+REG.addMenu.push({ order: 1, label: 'New training', route: 'new-training' });
+REG.routes['new-training'] = function () {
+  page('New training');
+  const prods = trnProductOptions('');
+  if (!prods.length) { show('<div class="empty">There are no active training products yet.</div>'); return; }
+  show(trnFormHtml({}, true), '<button class="btn btn-primary" id="f07save">Save training</button>');
+  trnWire($('.trn-form'), true);
+  $('#f07save').addEventListener('click', () => {
+    const root = $('#view'); const miss = validateForm(root);
+    if (miss) { barError(miss); return; }
+    const f = trnCollect(root), chk = trnCheck(f);
+    if (chk) { barError(chk); return; }
+    runSave($('#f07save'), async () => {
+      const d = await api('addTraining', { by: S.me, fields: f }, true);
+      upsert(S.trainings, 'Training ID', d.training); reindex();
+      confirmed('Saved.', 'The training is on the list.');
+      replace('training/' + d.training['Training ID']);
+    });
+  });
+};
+/* ==== END F07 ================================================================ */
+
+/* ==== BEGIN F10 — Edit training ============================================= */
+/* @spec F10
+ * Feature: Edit training
+ * Status: New
+ * Screen: Training page > Edit
+ * Delta: New form with the saved values, the same fields as Add training plus Status. Actual participants, the feedback summary and the facilitator requirement follow the status chosen.
+ * Validations: Form: the same as Add training. Actual participants show only when the status is Delivered and are required for a Per participant fee. At least one facilitator is required when the status is Confirmed or Delivered. The server repeats every check.
+ * Calculations: Changing the product on this form does not change the mode, end date or fee already saved [CONFIRMED]. Actual participants and the feedback summary are kept as saved when the status is moved away from Delivered [CONFIRMED]. A facilitator who has since been made inactive stays on the training [CONFIRMED]. After saving, the training page opens [CONFIRMED].
+ * Dependencies: Trainings; Facilitators; Products (company sheet); Orgs (Org Master); F06 (opened from the training page, and from a status change that needs more information).
+ * @end */
+REG.routes['edit-training'] = function (args) {
+  const t = S.idx.trn[args[0]];
+  page('Edit training');
+  if (!t) { show('<div class="empty">That training could not be found.</div>'); return; }
+  show(trnFormHtml(t, false, STATUSES.indexOf(args[1]) >= 0 ? args[1] : ''), '<button class="btn btn-primary" id="f10save">Save changes</button>');
+  trnWire($('.trn-form'), false);
+  $('#f10save').addEventListener('click', () => {
+    const root = $('#view'); const miss = validateForm(root);
+    if (miss) { barError(miss); return; }
+    const f = trnCollect(root), chk = trnCheck(f);
+    if (chk) { barError(chk); return; }
+    runSave($('#f10save'), async () => {
+      const d = await api('updateTraining', { by: S.me, trainingId: t['Training ID'], fields: f }, true);
+      upsert(S.trainings, 'Training ID', d.training); reindex();
+      confirmed('Saved.', 'The training is up to date.');
+      replace('training/' + t['Training ID']);
+    });
+  });
+};
+/* ==== END F10 ================================================================ */
+
+/* ==== BEGIN F08 — Receipts ================================================== */
+/* @spec F08
+ * Feature: Receipts
+ * Status: New
+ * Screen: Training page > Add receipt; Training page > Receipts > Edit
+ * Delta: New forms to record a payment received against a training, change it, or delete it. Part-payments are separate receipts.
+ * Validations: Form: date received and amount are required. The date cannot be later than today and the amount must be above 0. Payment mode comes from the company list. The server repeats every check.
+ * Calculations: Date received defaults to today, the amount to the amount still pending, and Recorded by to the person using the tool [CONFIRMED]. Deleting asks for confirmation first [CONFIRMED]. The training page, Pending fees and Needs action update straight after saving [CONFIRMED]. Receipts are not offered on Free trainings [CONFIRMED].
+ * Dependencies: Receipts; Trainings; Lists (company sheet): Payment Mode; Members (company sheet); F06 (entry points).
+ * @end */
+function f08_form(r, pendingAmt, isNew) {
+  const modes = S.lists.paymentMode;
+  return '<div class="card">' + fDate('Received On', 'Received on', { req: true, value: r['Received On'] || todayStr(), max: todayStr() })
+    + fText('Amount', 'Amount received (₹)', { req: true, value: r['Amount'] || (pendingAmt > 0 ? String(pendingAmt) : ''), type: 'number' })
+    + fChoice('Mode', 'Paid by', modes, { value: r['Mode'] })
+    + fText('Reference', 'Reference', { value: r['Reference'], placeholder: 'UTR or cheque number' })
+    + (isNew ? fChoice('Recorded By', 'Recorded by', activeNames(), { req: true, value: S.me }) : '') + '</div>';
+}
+REG.routes['add-receipt'] = function (args) {
+  const t = S.idx.trn[args[0]];
+  page('Add receipt');
+  if (!t || t['Fee Basis'] === 'Free') { show('<div class="empty">This training does not take receipts.</div>'); return; }
+  const c = calc(t);
+  show('<div class="card"><div class="org-name">' + esc(clientLabel(t)) + '</div><div class="muted">' + esc(productName(t['Product ID'])) + ' · ' + esc(rupees(c.pending)) + ' pending</div></div>' + f08_form({}, c.pending, true), '<button class="btn btn-primary" id="f08save">Save receipt</button>');
+  $('#f08save').addEventListener('click', () => {
+    const root = $('#view'); const miss = validateForm(root);
+    if (miss) { barError(miss); return; }
+    const f = readForm(root);
+    runSave($('#f08save'), async () => {
+      const d = await api('addReceipt', { by: S.me, trainingId: t['Training ID'], recordedBy: f['Recorded By'], fields: { 'Received On': f['Received On'], Amount: f['Amount'], Mode: f['Mode'] || '', Reference: f['Reference'] } }, true);
+      upsert(S.receipts, 'Receipt ID', d.receipt); reindex();
+      confirmed('Recorded.', 'The receipt is on the training.');
+      replace('training/' + t['Training ID']);
+    });
+  });
+};
+REG.routes['edit-receipt'] = function (args) {
+  const r = S.idx.rec[args[0]];
+  page('Edit receipt');
+  if (!r) { show('<div class="empty">That receipt could not be found.</div>'); return; }
+  const t = S.idx.trn[r['Training ID']];
+  show('<div class="card"><div class="org-name">' + esc(t ? clientLabel(t) : r['Training ID']) + '</div><div class="muted">' + esc(t ? productName(t['Product ID']) : '') + '</div></div>' + f08_form(r, 0, false)
+    + '<div class="center"><button class="link-btn overdue" data-act="f08.delask" data-id="' + escA(r['Receipt ID']) + '">Delete this receipt</button></div>', '<button class="btn btn-primary" id="f08save">Save changes</button>');
+  $('#f08save').addEventListener('click', () => {
+    const root = $('#view'); const miss = validateForm(root);
+    if (miss) { barError(miss); return; }
+    const f = readForm(root);
+    runSave($('#f08save'), async () => {
+      const d = await api('updateReceipt', { by: S.me, receiptId: r['Receipt ID'], fields: { 'Received On': f['Received On'], Amount: f['Amount'], Mode: f['Mode'] || '', Reference: f['Reference'] } }, true);
+      upsert(S.receipts, 'Receipt ID', d.receipt); reindex();
+      confirmed('Saved.', 'The receipt is up to date.');
+      replace('training/' + r['Training ID']);
+    });
+  });
+};
+REG.acts['f08.delask'] = el => {
+  openSheet('<div class="card-title">Delete this receipt?</div><button class="btn btn-primary" data-act="f08.delyes" data-id="' + escA(el.dataset.id) + '">Yes, delete it</button><button class="btn" data-act="core.closeSheet">Keep it</button>');
+};
+REG.acts['f08.delyes'] = async el => {
+  closeSheet();
+  try {
+    const d = await api('deleteReceipt', { by: S.me, receiptId: el.dataset.id }, true);
+    S.receipts = S.receipts.filter(x => x['Receipt ID'] !== d.deleted); reindex();
+    confirmed('Deleted.', ''); replace('training/' + d.trainingId);
+  } catch (err) { toast(err.message); }
+};
+/* ==== END F08 ================================================================ */
+
+/* ==== BEGIN F09 — Facilitators (Settings) =================================== */
+/* @spec F09
+ * Feature: Facilitators
+ * Status: New
+ * Screen: Settings > Facilitators
+ * Delta: New list of facilitators with a search box, and a form to add one or change a name, level, active flag or notes. Levels and what each means come from the Levels tab of the training sheet.
+ * Validations: Form: name and level are required. The server checks the name is up to 80 characters, has no comma and is unique ignoring case and spaces, and that the level is in the Levels tab.
+ * Calculations: New facilitators are active [CONFIRMED]. When a level is chosen, its description from the Levels tab is shown [CONFIRMED]. The name is locked once the facilitator has been on any training; to change it, add a new facilitator and make the old one inactive [CONFIRMED]. An inactive facilitator stays on old trainings and is not offered for new ones [CONFIRMED].
+ * Dependencies: Facilitators; Levels; Trainings (name lock); F07 and F10 (the facilitator picker).
+ * @end */
+REG.settingsItems.push({ group: 'Team', order: 1, label: 'Facilitators', route: 'facilitators' });
+const F09 = { q: '' };
+function f09_used(name) { return S.trainings.some(t => facList(t).indexOf(name) >= 0); }
+REG.routes.facilitators = function () {
+  page('Facilitators');
+  show('<div class="searchrow"><input type="search" id="f09q" placeholder="Search facilitators" value="' + escA(F09.q) + '"></div><div class="count-line" id="f09count"></div><div id="f09list"></div>',
+    '<a class="btn btn-primary" href="#/facilitator/new">Add facilitator</a>');
+  $('#f09q').addEventListener('input', e => { F09.q = e.target.value; f09_list(); });
+  f09_list();
+};
+function f09_list() {
+  const q = F09.q.toLowerCase().split(/\s+/).filter(Boolean);
+  const rows = S.facilitators.filter(f => q.every(w => (f['Name'] + ' ' + f['Notes']).toLowerCase().indexOf(w) >= 0))
+    .sort((a, b) => (isYes(b['Active']) - isYes(a['Active'])) || (parseInt(b['Level'], 10) - parseInt(a['Level'], 10)) || a['Name'].localeCompare(b['Name']));
+  $('#f09count').textContent = plural(rows.length, 'facilitator');
+  $('#f09list').innerHTML = rows.length ? listHtml(rows, f => '<a class="row" href="#/facilitator/' + encodeURIComponent(f['Name']) + '"><div class="row-top"><div><div class="row-title">' + esc(f['Name']) + '</div>'
+    + (f['Notes'] ? '<div class="row-sub">' + esc(f['Notes']) + '</div>' : '') + '</div><div class="row-tags" style="margin:0"><span class="badge tag">Level ' + esc(f['Level']) + '</span>' + (isYes(f['Active']) ? '' : '<span class="badge st-ni">Inactive</span>') + '</div></div></a>')
+    : '<div class="empty">No facilitators yet.</div>';
+}
+REG.routes.facilitator = function (args) {
+  const isNew = args[0] === 'new';
+  const f = isNew ? {} : S.idx.fac[args[0]];
+  page(isNew ? 'New facilitator' : 'Facilitator');
+  if (!f) { show('<div class="empty">That facilitator could not be found.</div>'); return; }
+  const lv = S.levels.map(l => ({ v: String(l.level), l: 'Level ' + l.level }));
+  const locked = !isNew && f09_used(f['Name']);
+  show('<div class="card">' + fText('Name', 'Name', { req: true, value: f['Name'] })
+    + fChoice('Level', 'Level', lv, { req: true, value: f['Level'] }) + '<div class="small muted" id="f09desc" style="margin:-8px 0 18px"></div>'
+    + (isNew ? '' : fChips('Active', 'Active', ['Yes', 'No'], { req: true, value: isYes(f['Active']) ? 'Yes' : 'No' }))
+    + fText('Notes', 'Notes', { value: f['Notes'], area: true, rows: 3 }) + '</div>',
+    '<button class="btn btn-primary" id="f09save">' + (isNew ? 'Add facilitator' : 'Save changes') + '</button>');
+  if (locked) { const i = $('input[data-k="Name"]'); i.disabled = true; i.insertAdjacentHTML('afterend', '<div class="small muted" style="margin-top:6px">This name is on trainings, so it stays as it is.</div>'); }
+  const showDesc = () => { const w = $('.field[data-f="Level"]'); const v = fieldVal(w); const l = S.levels.find(x => String(x.level) === v); $('#f09desc').textContent = l ? l.description : ''; };
+  const fcard = $('.card', $('#view')); fcard.addEventListener('chipchange', showDesc); fcard.addEventListener('change', showDesc); showDesc();
+  $('#f09save').addEventListener('click', () => {
+    const root = $('#view'); const miss = validateForm(root);
+    if (miss) { barError(miss); return; }
+    const v = readForm(root);
+    runSave($('#f09save'), async () => {
+      if (isNew) {
+        const d = await api('addFacilitator', { by: S.me, name: v['Name'], level: v['Level'], notes: v['Notes'] }, true);
+        S.facilitators.push(d.facilitator);
+      } else {
+        const d = await api('updateFacilitator', { by: S.me, name: f['Name'], fields: { Name: v['Name'], Level: v['Level'], Active: v['Active'], Notes: v['Notes'] } }, true);
+        upsert(S.facilitators, 'Name', d.facilitator);
+        if (d.previousName !== d.facilitator['Name']) S.facilitators = S.facilitators.filter(x => x['Name'] !== d.previousName);
+      }
+      reindex();
+      confirmed('Saved.', 'The facilitator list is up to date.');
+      replace('facilitators');
+    });
+  });
+};
+/* ==== END F09 ================================================================ */
+
+/* ==== BEGIN F11 — Refresh =================================================== */
+/* @spec F11
+ * Feature: Refresh
+ * Status: New
+ * Screen: Header on Home and the Training page
+ * Delta: New refresh button in the header that fetches the latest data from the sheets without reloading the page. The open tab, search, filters and scroll position are kept. It is not shown on forms, so a half-filled form is never lost.
+ * Validations: Form: none.
+ * Calculations: Refresh fetches the same data as the first load and redraws the current screen [CONFIRMED]. If the fetch fails, a message appears and the data already on screen is kept [CONFIRMED]. Settings > Reload does the same and stays [CONFIRMED].
+ * Dependencies: F01 (data load).
+ * @end */
+REG.acts['f11.refresh'] = async el => {
+  el.disabled = true; el.classList.add('spin');
+  const y = window.scrollY;
+  try { await refreshData(); route(); window.scrollTo(0, y); toast('Up to date.'); }
+  catch (e) { el.disabled = false; el.classList.remove('spin'); toast(e.message); }
+};
+REG.acts['f17.refresh'] = REG.acts['f11.refresh'];
+/* ==== END F11 ================================================================ */
+
+/* ==== Feature Spec view (generated from the spec tags at build time) ========= */
+const FEATURE_SPEC = [
+ {
+  "feature": "Connect, identify and brand",
+  "status": "New",
+  "screen": "First open; Settings > This device",
+  "delta": "New start-up flow: the web app address (from the landing page link ?url=, or typed once), the team key, and the person using the tool. All three are remembered on the device. The page title, heading and main colour come from Config.",
+  "validations": "Form: the web app address must answer; the team key is required and is checked by the server on every request; the person must be chosen from active members.",
+  "calculations": "Remembered values are kept per web app address, so two workspaces opened from the same page do not mix [CONFIRMED]. Heading is Tool Title (default Trainings), the subtitle is Workspace Name, and the colour is Primary Colour with darker and softer shades worked out from it [CONFIRMED]. Today's date comes from the server in the Config timezone [CONFIRMED].",
+  "dependencies": "Config (Training sheet): Team Key, Tool Title, Primary Colour; Config (Company): Workspace Name, Timezone; Members.",
+  "id": "F01"
+ },
+ {
+  "feature": "Upcoming",
+  "status": "New",
+  "screen": "Home > Upcoming",
+  "delta": "New home tab listing trainings that are still ahead, soonest first, each showing the client, product, dates, mode, facilitators and whether it is still Planned or already Confirmed.",
+  "validations": "Form: none.",
+  "calculations": "A training is upcoming when its Status is Planned or Confirmed and its End Date (or Start Date when there is no End Date) is today or later [CONFIRMED]. The list is sorted by Start Date, soonest first [CONFIRMED]. Each row says how many days away the start is [CONFIRMED]. Cancelled trainings never appear [CONFIRMED].",
+  "dependencies": "Trainings; Products; Facilitators; Orgs (Org Master); F06 (row opens the training page).",
+  "id": "F02"
+ },
+ {
+  "feature": "Needs action",
+  "status": "New",
+  "screen": "Home > Needs action",
+  "delta": "New home tab with two groups of trainings that are waiting for someone: ones whose date has passed but whose status was never updated, and delivered ones where the invoice or the fee still needs attention.",
+  "validations": "Form: none.",
+  "calculations": "Group 1, Update the status: Status is Planned or Confirmed and the End Date (or Start Date) is before today; the longest overdue is listed first [CONFIRMED]. Group 2, Invoice or chase the fee: Status is Delivered and the fee status is Not invoiced, Invoiced or Part-paid; the oldest first [CONFIRMED]. Cancelled, Free and fully paid trainings never appear [CONFIRMED].",
+  "dependencies": "Trainings; Receipts; F06 (row opens the training page).",
+  "id": "F03"
+ },
+ {
+  "feature": "Pending fees",
+  "status": "New",
+  "screen": "Home > Pending fees",
+  "delta": "New home tab showing the fees still to be received on delivered trainings, grouped by client, with the total at the top.",
+  "validations": "Form: none.",
+  "calculations": "Total Fee is 0 for Free, the Fee Amount for Per training, and Fee Amount times Actual Participants for Per participant (using Expected Participants as an estimate until the actual is filled) [CONFIRMED]. Received is the sum of the receipts. Pending is Total Fee minus Received and never below 0 [CONFIRMED]. A training is listed when it is Delivered and Pending is above 0; Cancelled and Free trainings are left out [CONFIRMED]. Within a client the oldest comes first, and clients are ordered by their oldest pending training [CONFIRMED]. Age is counted from the Invoice Date, or from the training's last day when there is no invoice yet [CONFIRMED].",
+  "dependencies": "Trainings; Receipts; Orgs (Org Master); F06 (row opens the training page).",
+  "id": "F04"
+ },
+ {
+  "feature": "All trainings",
+  "status": "New",
+  "screen": "Home > All trainings",
+  "delta": "New home tab listing every training with a search box and filters for status, product and facilitator.",
+  "validations": "Form: none; every filter is optional.",
+  "calculations": "Search matches client, product, facilitators, invoice number and venue, ignoring case; several words must all match [CONFIRMED]. The filters combine with AND [CONFIRMED]. The Facilitator filter lists every facilitator, active or not, and matches trainings they are on [CONFIRMED]. The list is sorted by Start Date, newest first, and shows 60 rows at a time [CONFIRMED].",
+  "dependencies": "Trainings; Products; Facilitators; Orgs (Org Master); F06 (row opens the training page).",
+  "id": "F05"
+ },
+ {
+  "feature": "Training page and status change",
+  "status": "New",
+  "screen": "Training page (opened from any list)",
+  "delta": "New screen showing one training: client, product, dates, mode, venue, facilitators, participants, fee, invoice, received and pending amounts, receipts, links and feedback summary. The status can be changed from here.",
+  "validations": "Form: none on the page itself. Delivered is greyed out while the training has not started. The server checks every status change.",
+  "calculations": "Tapping Planned saves at once. Tapping Confirmed saves at once when a facilitator is already on the training, otherwise the edit form opens with Confirmed chosen so a facilitator can be added [CONFIRMED]. Tapping Delivered opens the edit form with Delivered chosen so the actual participants, links and summary can be added [CONFIRMED]. Tapping Cancelled asks for confirmation first and keeps all receipts [CONFIRMED]. A cancelled training that has receipts shows a notice that money was received and that any refund is handled in Tally [CONFIRMED]. Total fee shows as an estimate until the actual participants are filled for a Per participant fee [CONFIRMED]. The pending age is shown for delivered trainings with an amount pending [CONFIRMED].",
+  "dependencies": "Trainings; Receipts; Products; Facilitators; Orgs (Org Master); F07 and F10 (forms); F08 (receipts).",
+  "id": "F06"
+ },
+ {
+  "feature": "Add training",
+  "status": "New",
+  "screen": "Home > Add > New training",
+  "delta": "New form to schedule a training. Choosing the product pre-fills the mode, end date, fee basis and fee amount from the product's defaults, and the facilitator picker lists the facilitators who are eligible for that product first.",
+  "validations": "Form: type, product, start date, mode and fee are required. Client is required for Client-specific and optional for Open batch. Venue shows only for In-person. Fee amount shows only when the fee is not Free. Expected participants are required for a Per participant fee. The end date cannot be earlier than the start date. The server repeats every check. Server checks: Product must be a Training product and Active (a saved training may keep a product that was made inactive later). Training Type must be Client-specific or Open batch. Client is required for Client-specific, optional for Open batch, and must exist in the Org Master (an archived client is replaced by its Archived To record). Start Date is required and valid; End Date is optional, valid and not earlier than Start Date. Mode must be Online or In-person. Venue is up to 120 characters and is cleared when Mode is Online. Facilitators must be names from the Facilitators tab, none twice, and only active ones unless already on this training; at least one is required when Status is Confirmed or Delivered. Status must be one of Planned, Confirmed, Delivered, Cancelled, and Delivered cannot be saved while Start Date is in the future. Expected Participants is a whole number of 1 or more, required for Per participant. Actual Participants is a whole number of 0 or more, required when Status is Delivered and Fee Basis is Per participant. Fee Basis must be Free, Per training or Per participant. Fee Amount is required for Per training and Per participant (above 0, at most 2 decimals) and is cleared when Free. Invoice No is up to 40 characters; Invoice Date is required when Invoice No is filled; both are cleared when Free. Feedback Link and Folder Link, if given, must be web addresses. Saved by must be an active member.",
+  "calculations": "New trainings start as Planned [CONFIRMED]. The end date is filled as the start date plus the product's default days minus 1, when the default is 2 days or more and the end date has not been typed [CONFIRMED]. Eligible facilitators are active ones whose level is at or above the product's Minimum Facilitator Level; with no minimum, every active facilitator is eligible [CONFIRMED]. Facilitators below that level can still be added, with a notice [CONFIRMED]. Picking a different product on this form pre-fills the defaults again [CONFIRMED]. After saving, the training page opens [CONFIRMED]. Server: Training ID is the highest existing number plus 1, written as TRN- plus 4 digits, under a script lock [CONFIRMED]. New trainings start as Planned and Client-specific unless chosen otherwise [CONFIRMED]. Facilitators are stored as names separated by a comma and a space [CONFIRMED]. Created On/By are set on save and never changed [CONFIRMED]. A change saves only the fields sent; Actual Participants and Feedback Summary are kept as saved when the status moves away from Delivered [CONFIRMED]. Org ID is stored as the replacement record when the chosen client has been archived [CONFIRMED].",
+  "dependencies": "Trainings; Products and Members (company sheet); Facilitators; Levels; Orgs (Org Master); F02 to F06 (lists and page). Server: Trainings; Facilitators; Products, Members (company sheet); Orgs (Org Master).",
+  "id": "F07"
+ },
+ {
+  "feature": "Receipts",
+  "status": "New",
+  "screen": "Training page > Add receipt; Training page > Receipts > Edit",
+  "delta": "New forms to record a payment received against a training, change it, or delete it. Part-payments are separate receipts.",
+  "validations": "Form: date received and amount are required. The date cannot be later than today and the amount must be above 0. Payment mode comes from the company list. The server repeats every check. Server checks: the training must exist. Received On is required, a valid date and not later than today. Amount is required, above 0, with at most 2 decimals. Mode, if given, must be in Lists (company sheet) > Payment Mode. Reference is up to 60 characters. Recorded By must be an active member. Saved by must be an active member. On edit only Received On, Amount, Mode and Reference can change; Training ID cannot.",
+  "calculations": "Date received defaults to today, the amount to the amount still pending, and Recorded by to the person using the tool [CONFIRMED]. Deleting asks for confirmation first [CONFIRMED]. The training page, Pending fees and Needs action update straight after saving [CONFIRMED]. Receipts are not offered on Free trainings [CONFIRMED]. Server: Receipt ID is the highest existing number plus 1, written as RCT- plus 4 digits, under a script lock [CONFIRMED]. Part-payments are separate receipts [CONFIRMED]. Created On is set on save [CONFIRMED]. Deleting a receipt removes its row from the sheet after the user confirms [CONFIRMED]. If the deleted receipt was the latest one, its number can be issued again [UNVERIFIED — NEEDS CONFIRMATION].",
+  "dependencies": "Receipts; Trainings; Lists (company sheet): Payment Mode; Members (company sheet); F06 (entry points). Server: Receipts; Trainings; Lists (company sheet): Payment Mode; Members (company sheet).",
+  "id": "F08"
+ },
+ {
+  "feature": "Facilitators",
+  "status": "New",
+  "screen": "Settings > Facilitators",
+  "delta": "New list of facilitators with a search box, and a form to add one or change a name, level, active flag or notes. Levels and what each means come from the Levels tab of the training sheet.",
+  "validations": "Form: name and level are required. The server checks the name is up to 80 characters, has no comma and is unique ignoring case and spaces, and that the level is in the Levels tab. Server checks: Name is required, up to 80 characters, has no comma, and is unique ignoring case and spaces. Level must be a level in the Levels tab. Active must be Yes or No. A name can be changed only while the facilitator is on no training. Saved by must be an active member.",
+  "calculations": "New facilitators are active [CONFIRMED]. When a level is chosen, its description from the Levels tab is shown [CONFIRMED]. The name is locked once the facilitator has been on any training; to change it, add a new facilitator and make the old one inactive [CONFIRMED]. An inactive facilitator stays on old trainings and is not offered for new ones [CONFIRMED]. Server: New facilitators are Active = Yes [CONFIRMED]. Names are stored on trainings exactly as written, so a facilitator who has been on any training keeps the name; to change it, add a new facilitator and make the old one inactive [CONFIRMED]. An inactive facilitator stays on old trainings but cannot be added to new ones [CONFIRMED].",
+  "dependencies": "Facilitators; Levels; Trainings (name lock); F07 and F10 (the facilitator picker). Server: Facilitators; Levels; Trainings (name lock).",
+  "id": "F09"
+ },
+ {
+  "feature": "Edit training",
+  "status": "New",
+  "screen": "Training page > Edit",
+  "delta": "New form with the saved values, the same fields as Add training plus Status. Actual participants, the feedback summary and the facilitator requirement follow the status chosen.",
+  "validations": "Form: the same as Add training. Actual participants show only when the status is Delivered and are required for a Per participant fee. At least one facilitator is required when the status is Confirmed or Delivered. The server repeats every check. Server checks: the training must exist. Every rule in Add training applies to the saved result, so a status change is refused when it would leave the training incomplete (for example Confirmed with no facilitator, or Delivered without the actual participants for a Per participant fee). Saved by must be an active member.",
+  "calculations": "Changing the product on this form does not change the mode, end date or fee already saved [CONFIRMED]. Actual participants and the feedback summary are kept as saved when the status is moved away from Delivered [CONFIRMED]. A facilitator who has since been made inactive stays on the training [CONFIRMED]. After saving, the training page opens [CONFIRMED]. Server: Only the fields sent change; every other field keeps its saved value [CONFIRMED]. Created On/By and Training ID never change [CONFIRMED]. Receipts already recorded against a training are kept when it is cancelled [CONFIRMED].",
+  "dependencies": "Trainings; Facilitators; Products (company sheet); Orgs (Org Master); F06 (opened from the training page, and from a status change that needs more information). Server: Trainings; the same sheets as Add training.",
+  "id": "F10"
+ },
+ {
+  "feature": "Refresh",
+  "status": "New",
+  "screen": "Header on Home and the Training page",
+  "delta": "New refresh button in the header that fetches the latest data from the sheets without reloading the page. The open tab, search, filters and scroll position are kept. It is not shown on forms, so a half-filled form is never lost.",
+  "validations": "Form: none.",
+  "calculations": "Refresh fetches the same data as the first load and redraws the current screen [CONFIRMED]. If the fetch fails, a message appears and the data already on screen is kept [CONFIRMED]. Settings > Reload does the same and stays [CONFIRMED].",
+  "dependencies": "F01 (data load).",
+  "id": "F11"
+ }
+];
+REG.settingsItems.push({ group: 'Reference', order: 1, label: 'Feature Spec', route: 'spec' });
+REG.routes.spec = function () {
+  page('Feature Spec');
+  document.body.classList.add('spec-view');
+  const mark = s => esc(s).replace(/\[CONFIRMED[^\]]*\]/g, m => '<span class="badge st-conv">' + m.slice(1, -1) + '</span>').replace(/\[UNVERIFIED[^\]]*\]/g, m => '<span class="badge cold">' + m.slice(1, -1) + '</span>');
+  show('<div class="spec-wrap"><table class="spec"><thead><tr><th>Sr No</th><th>Feature</th><th>New / Modified</th><th>Screen / Location</th><th>Delta</th><th>Validations</th><th>Calculations</th><th>Dependencies</th></tr></thead><tbody>'
+    + FEATURE_SPEC.map((f, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + esc(f.feature) + '</b></td><td>' + esc(f.status) + '</td><td>' + esc(f.screen) + '</td><td>' + esc(f.delta) + '</td><td>' + esc(f.validations) + '</td><td>' + mark(f.calculations) + '</td><td>' + esc(f.dependencies) + '</td></tr>').join('')
+    + '</tbody></table></div>');
+};
+
+/* ==== BEGIN F01 — Connect, identify and brand ================================ */
+/* @spec F01
+ * Feature: Connect, identify and brand
+ * Status: New
+ * Screen: First open; Settings > This device
+ * Delta: New start-up flow: the web app address (from the landing page link ?url=, or typed once), the team key, and the person using the tool. All three are remembered on the device. The page title, heading and main colour come from Config.
+ * Validations: Form: the web app address must answer; the team key is required and is checked by the server on every request; the person must be chosen from active members.
+ * Calculations: Remembered values are kept per web app address, so two workspaces opened from the same page do not mix [CONFIRMED]. Heading is Tool Title (default Trainings), the subtitle is Workspace Name, and the colour is Primary Colour with darker and softer shades worked out from it [CONFIRMED]. Today's date comes from the server in the Config timezone [CONFIRMED].
+ * Dependencies: Config (Training sheet): Team Key, Tool Title, Primary Colour; Config (Company): Workspace Name, Timezone; Members.
+ * @end */
+function applyData(d) {
+  S.cfg = d.config; S.members = d.members; S.lists = d.lists; S.products = d.products; S.levels = d.levels || [];
+  S.facilitators = d.facilitators; S.orgs = d.orgs; S.trainings = d.trainings; S.receipts = d.receipts;
+  applyBrand(); reindex();
+}
+async function refreshData() { applyData(await api('getAll')); }
+function viewShell() { setChrome({ title: brandTitle(), sub: S.cfg.workspaceName || '', back: false }); setBar(''); }
+function viewConnect(msg) {
+  viewShell();
+  show((msg ? '<div class="banner">' + esc(msg) + '</div>' : '') + '<div class="card">' + fText('url', 'Web app address', { req: true, type: 'url', placeholder: 'https://script.google.com/…' }) + '</div>', '<button class="btn btn-primary" id="f01go">Connect</button>');
+  $('#f01go').addEventListener('click', () => {
+    const miss = validateForm($('#view')); if (miss) { barError(miss); return; }
+    const url = readForm($('#view'))['url'];
+    runSave($('#f01go'), async () => {
+      let ok = false;
+      try { const r = await fetch(url + (url.indexOf('?') >= 0 ? '&' : '?') + 'action=ping'); ok = (await r.json()).ok; } catch (e) { ok = false; }
+      if (!ok) throw new Error('That address did not answer. Please check it and try again.');
+      useUrl(url); begin();
+    });
+  });
+}
+function viewKey(msg) {
+  viewShell();
+  show((msg ? '<div class="banner">' + esc(msg) + '</div>' : '') + '<div class="card">' + fText('key', 'Team key', { req: true }) + '</div>', '<button class="btn btn-primary" id="f01go">Open</button>');
+  const go1 = () => { const miss = validateForm($('#view')); if (miss) { barError(miss); return; } S.key = readForm($('#view'))['key']; store.set('key', S.key); startData(); };
+  $('#f01go').addEventListener('click', go1);
+}
+function viewWho(canCancel) {
+  viewShell();
+  show('<div class="card">' + fChoice('who', 'Who is using this?', activeNames(), { req: true, value: S.me }) + '</div>' + (canCancel ? '<div class="center"><button class="link-btn" data-act="f01.cancelwho">Cancel</button></div>' : ''),
+    '<button class="btn btn-primary" id="f01go">Continue</button>');
+  $('#f01go').addEventListener('click', () => {
+    const miss = validateForm($('#view')); if (miss) { barError(miss); return; }
+    S.me = readForm($('#view'))['who']; store.set('me', S.me); startRouting();
+  });
+}
+function viewError(msg) {
+  viewShell();
+  show('<div class="empty">' + esc(msg) + '<br><button class="btn btn-primary" id="f01retry">Try again</button><br><button class="link-btn" id="f01change">Change web app address</button></div>');
+  $('#f01retry').addEventListener('click', startData);
+  $('#f01change').addEventListener('click', () => viewConnect());
+}
+async function startData() {
+  viewShell(); show('<div class="loading-note">Loading…</div>');
+  try { await refreshData(); }
+  catch (e) {
+    if (/team key/i.test(e.message)) { store.del('key'); S.key = ''; viewKey(e.message); return; }
+    viewError(e.message); return;
+  }
+  const me = store.get('me');
+  if (me && activeNames().indexOf(me) >= 0) { S.me = me; startRouting(); } else { S.me = ''; viewWho(false); }
+}
+let routingOn = false;
+function startRouting() {
+  if (!routingOn) { window.addEventListener('hashchange', onHash); routingOn = true; }
+  if (!location.hash) history.replaceState(null, '', location.pathname + location.search + '#/home');
+  navStack.length = 0; navStack.push(location.hash);
+  route();
+}
+function useUrl(url) {
+  NS = 'trn.'; store.set('lastUrl', url);
+  S.url = url; NS = 'trn.' + hashStr(url) + '.';
+}
+function begin() {
+  S.key = store.get('key') || '';
+  if (!S.key) { viewKey(); return; }
+  startData();
+}
+REG.acts['core.who'] = () => viewWho(true);
+REG.acts['f01.cancelwho'] = () => startRouting();
+REG.acts['core.reload'] = async () => { toast('Reloading…'); try { await refreshData(); route(); toast('Up to date.'); } catch (e) { toast(e.message); } };
+REG.acts['core.forget'] = () => { store.del('key'); store.del('me'); S.key = ''; S.me = ''; viewKey(); };
+function start() {
+  const p = new URLSearchParams(location.search);
+  NS = 'trn.';
+  const url = p.get('url') || store.get('lastUrl') || '';
+  if (!url) { viewConnect(); return; }
+  useUrl(url); begin();
+}
+/* ==== END F01 ================================================================ */
+
+start();
+
+</script>
+</body>
+</html>
