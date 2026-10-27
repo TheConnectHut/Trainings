@@ -54,6 +54,7 @@
   .hdr-title { flex: 1; min-width: 0; padding-left: 4px; }
   .hdr-title .title { font-size: 16px; font-weight: 700; color: var(--primary-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hdr-title .subtitle { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hdr-logo { height: 32px; width: auto; max-width: 96px; border-radius: 6px; flex-shrink: 0; }
   #hActions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
   /* ============ LAYOUT ============ */
@@ -237,6 +238,7 @@
 
 <header id="hdr">
   <button class="icon-btn" id="backBtn" aria-label="Back" hidden>&#8249;</button>
+  <img id="hLogo" class="hdr-logo" alt="" hidden>
   <div class="hdr-title"><div class="title" id="hTitle"></div><div class="subtitle" id="hSub"></div></div>
   <div id="hActions"></div>
 </header>
@@ -272,7 +274,7 @@ const S = {
   url: '', key: '', me: '', cfg: {}, members: [], products: [], levels: [], facilitators: [], orgs: [], trainings: [], receipts: [],
   lists: { paymentMode: [] }, idx: {}, ui: {}
 };
-const REG = { routes: {}, homeTabs: [], homeBanners: [], addMenu: [], settingsItems: [], acts: {} };
+const REG = { routes: {}, homeTabs: [], homeBanners: [], addMenu: [], settingsItems: [], deviceRows: [], hooks: { chrome: [], url: [] }, acts: {} };
 const TYPES = ['Client-specific', 'Open batch'];
 const MODES = ['Online', 'In-person'];
 const STATUSES = ['Planned', 'Confirmed', 'Delivered', 'Cancelled'];
@@ -326,7 +328,6 @@ async function api(action, payload, isWrite) {
   if (!json.ok) throw new Error(json.error || 'Something went wrong.');
   return json.data;
 }
-
 
 /* ---------- data, index, derived values ---------- */
 function upsert(list, keyName, obj) {
@@ -410,6 +411,7 @@ function setChrome(o) {
   $('#hSub').textContent = o.sub || '';
   $('#backBtn').hidden = !o.back;
   $('#hActions').innerHTML = o.actions || '';
+  REG.hooks.chrome.forEach(f => f(o));
 }
 function setBar(html) {
   const b = $('#bar');
@@ -580,7 +582,6 @@ async function runSave(btn, fn) {
   finally { btn.disabled = false; btn.textContent = label; }
 }
 
-
 /* ---- core-shared v2 (from crm_v2.html): home screen and settings screen ---- */
 /* ---------- home screen shell: tabs and banners register themselves ---------- */
 REG.routes.home = function () {
@@ -613,11 +614,10 @@ REG.routes.settings = function () {
   show(Object.keys(groups).map(g => '<div class="card"><div class="card-title">' + esc(g) + '</div><div class="list" style="box-shadow:none;border:none;margin:0">'
     + groups[g].map(it => '<a class="row" href="#/' + escA(it.route) + '"><div class="row-title">' + esc(it.label) + '</div></a>').join('') + '</div></div>').join('')
     + '<div class="card"><div class="card-title">This device</div>'
-    + '<div class="row-top" style="margin-bottom:6px"><div>Using as <strong>' + esc(S.me) + '</strong></div><button class="link-btn" data-act="core.who">Change</button></div>'
+    + '<div class="row-top" style="margin-bottom:6px"><div>Using as <strong>' + esc(S.me) + '</strong></div><button class="link-btn" data-act="core.who">Change</button></div>' + REG.deviceRows.map(f => f()).join('')
     + '<div class="row-top"><div class="muted">Fetch the latest data</div><button class="link-btn" data-act="core.reload">Reload</button></div>'
     + '<div class="row-top"><div class="muted">Forget the team key on this device</div><button class="link-btn" data-act="core.forget">Disconnect</button></div></div>');
 };
-
 
 /* ---------- shared renderers ---------- */
 function trnRowHtml(t, o) {
@@ -776,11 +776,11 @@ function f05_list() {
 /* ==== BEGIN F06 — Training page and status change =========================== */
 /* @spec F06
  * Feature: Training page and status change
- * Status: New
+ * Status: Modified in v3
  * Screen: Training page (opened from any list)
- * Delta: New screen showing one training: client, product, dates, mode, venue, facilitators, participants, fee, invoice, received and pending amounts, receipts, links and feedback summary. The status can be changed from here.
+ * Delta: New screen showing one training: client, product, dates, mode, venue, facilitators, participants, fee, invoice, received and pending amounts, receipts, links and feedback summary. The status can be changed from here. In v3 the product's duration in hours is shown under the dates.
  * Validations: Form: none on the page itself. Delivered is greyed out while the training has not started. The server checks every status change.
- * Calculations: Tapping Planned saves at once. Tapping Confirmed saves at once when a facilitator is already on the training, otherwise the edit form opens with Confirmed chosen so a facilitator can be added [CONFIRMED]. Tapping Delivered opens the edit form with Delivered chosen so the actual participants, links and summary can be added [CONFIRMED]. Tapping Cancelled asks for confirmation first and keeps all receipts [CONFIRMED]. A cancelled training that has receipts shows a notice that money was received and that any refund is handled in Tally [CONFIRMED]. Total fee shows as an estimate until the actual participants are filled for a Per participant fee [CONFIRMED]. The pending age is shown for delivered trainings with an amount pending [CONFIRMED].
+ * Calculations: Tapping Planned saves at once. Tapping Confirmed saves at once when a facilitator is already on the training, otherwise the edit form opens with Confirmed chosen so a facilitator can be added [CONFIRMED]. Tapping Delivered opens the edit form with Delivered chosen so the actual participants, links and summary can be added [CONFIRMED]. Tapping Cancelled asks for confirmation first and keeps all receipts [CONFIRMED]. A cancelled training that has receipts shows a notice that money was received and that any refund is handled in Tally [CONFIRMED]. Duration is the product's Default Duration (Hours) from the Products tab, shown only when it is a whole number above 0 [CONFIRMED]. Total fee shows as an estimate until the actual participants are filled for a Per participant fee [CONFIRMED]. The pending age is shown for delivered trainings with an amount pending [CONFIRMED].
  * Dependencies: Trainings; Receipts; Products; Facilitators; Orgs (Org Master); F07 and F10 (forms); F08 (receipts).
  * @end */
 REG.routes.training = function (args) {
@@ -793,9 +793,10 @@ REG.routes.training = function (args) {
   const free = t['Fee Basis'] === 'Free';
   const future = t['Start Date'] > todayStr();
   const kv = rows => '<dl class="kv">' + rows.map(r => '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>').join('') + '</dl>';
-  const details = [['Dates', esc(dateRange(t))], ['Mode', esc(t['Mode']) + (t['Venue'] ? ' · ' + esc(t['Venue']) : '')],
+  const hrs = (S.idx.prod[t['Product ID']] || {})['Default Duration (Hours)'];
+  const details = [['Dates', esc(dateRange(t))]].concat(/^[1-9]\d*$/.test(String(hrs || '').trim()) ? [['Duration', plural(parseInt(hrs, 10), 'hour')]] : []).concat([['Mode', esc(t['Mode']) + (t['Venue'] ? ' · ' + esc(t['Venue']) : '')],
     ['Facilitators', facs.length ? facs.map(n => { const f = S.idx.fac[n]; return esc(n) + (f ? ' <span class="muted small">L' + esc(f['Level']) + '</span>' : ''); }).join('<br>') : '—'],
-    ['Participants', (t['Actual Participants'] !== '' ? esc(t['Actual Participants']) + ' attended' : (t['Expected Participants'] !== '' ? esc(t['Expected Participants']) + ' expected' : '—'))]];
+    ['Participants', (t['Actual Participants'] !== '' ? esc(t['Actual Participants']) + ' attended' : (t['Expected Participants'] !== '' ? esc(t['Expected Participants']) + ' expected' : '—'))]]);
   const fee = free ? [['Fee', 'Free']] : [
     ['Fee', esc(rupees(num(t['Fee Amount']))) + (t['Fee Basis'] === 'Per participant' ? ' per participant' : ' for the training')],
     ['Total fee', esc(rupees(c.total)) + (c.estimate ? ' <span class="muted small">estimate, from expected participants</span>' : '')],
@@ -893,7 +894,6 @@ function trnWire(root, isNew) {
   const setVal = (k, v) => { const w = W(k), i = w && $('[data-k]', w); if (i) i.value = v; };
   const setChip = (k, v) => { const w = W(k); if (w) $$('.chip', w).forEach(c => c.classList.toggle('selected', c.dataset.v === v)); };
   const facBox = $('.fac-sel', root), facCombo = $('.combo', W('Facilitators'));
-  let endAuto = '';
   function selFacs() { return $$('.chip.selected', facBox).map(c => c.dataset.v); }
   function facRefresh() {
     COMBOS[facCombo.dataset.combo] = trnFacItems(val('Product ID'), selFacs());
@@ -917,22 +917,12 @@ function trnWire(root, isNew) {
     setReq(W('Invoice Date'), !free && !!val('Invoice No'));
     const ed = $('[data-k]', W('End Date')); ed.min = val('Start Date') || '';
   }
-  function autoEnd() {
-    const p = S.idx.prod[val('Product ID')], days = p ? parseInt(p['Default Duration (Days)'], 10) : NaN, start = val('Start Date');
-    const ei = $('[data-k]', W('End Date'));
-    if (!isNew || !start || isNaN(days) || days < 2) return;
-    if (ei.value === '' || ei.value === endAuto) {
-      const dt = new Date(parseD(start) + (days - 1) * 86400000);
-      endAuto = dt.toISOString().slice(0, 10); ei.value = endAuto;
-    }
-  }
   function onProduct() {
     const p = S.idx.prod[val('Product ID')];
     if (isNew && p) {
       if (MODES.indexOf(p['Default Mode']) >= 0) setChip('Mode', p['Default Mode']);
       if (BASES.indexOf(p['Default Fee Basis']) >= 0) setChip('Fee Basis', p['Default Fee Basis']);
       setVal('Fee Amount', p['Default Fee Basis'] === 'Free' ? '' : (p['Default Fee Amount'] || ''));
-      endAuto = ''; setVal('End Date', ''); autoEnd();
     }
     refresh(); facRefresh();
   }
@@ -945,7 +935,7 @@ function trnWire(root, isNew) {
   });
   root.addEventListener('change', ev => {
     if (ev.target.closest('.field[data-f="Product ID"]')) onProduct();
-    else if (ev.target.closest('.field[data-f="Start Date"]')) { autoEnd(); refresh(); }
+    else if (ev.target.closest('.field[data-f="Start Date"]')) refresh();
   });
   root.addEventListener('input', ev => { if (ev.target.closest('.field[data-f="Invoice No"]')) refresh(); });
   root.addEventListener('combochange', ev => {
@@ -972,11 +962,11 @@ function trnCheck(f) {
 /* ==== BEGIN F07 — Add training ============================================== */
 /* @spec F07
  * Feature: Add training
- * Status: New
+ * Status: Modified in v3
  * Screen: Home > Add > New training
- * Delta: New form to schedule a training. Choosing the product pre-fills the mode, end date, fee basis and fee amount from the product's defaults, and the facilitator picker lists the facilitators who are eligible for that product first.
+ * Delta: New form to schedule a training. Choosing the product pre-fills the mode, fee basis and fee amount from the product's defaults (in v3 the end date is no longer filled, because the product's default duration is now in hours), and the facilitator picker lists the facilitators who are eligible for that product first.
  * Validations: Form: type, product, start date, mode and fee are required. Client is required for Client-specific and optional for Open batch. Venue shows only for In-person. Fee amount shows only when the fee is not Free. Expected participants are required for a Per participant fee. The end date cannot be earlier than the start date. The server repeats every check.
- * Calculations: New trainings start as Planned [CONFIRMED]. The end date is filled as the start date plus the product's default days minus 1, when the default is 2 days or more and the end date has not been typed [CONFIRMED]. Eligible facilitators are active ones whose level is at or above the product's Minimum Facilitator Level; with no minimum, every active facilitator is eligible [CONFIRMED]. Facilitators below that level can still be added, with a notice [CONFIRMED]. Picking a different product on this form pre-fills the defaults again [CONFIRMED]. After saving, the training page opens [CONFIRMED].
+ * Calculations: New trainings start as Planned [CONFIRMED]. The end date is left blank for a one-day training and typed in for a longer one; the product's default duration in hours is not used to work out dates [CONFIRMED]. Eligible facilitators are active ones whose level is at or above the product's Minimum Facilitator Level; with no minimum, every active facilitator is eligible [CONFIRMED]. Facilitators below that level can still be added, with a notice [CONFIRMED]. Picking a different product on this form pre-fills the defaults again [CONFIRMED]. After saving, the training page opens [CONFIRMED].
  * Dependencies: Trainings; Products and Members (company sheet); Facilitators; Levels; Orgs (Org Master); F02 to F06 (lists and page).
  * @end */
 REG.addMenu.push({ order: 1, label: 'New training', route: 'new-training' });
@@ -1184,6 +1174,50 @@ REG.acts['f11.refresh'] = async el => {
 REG.acts['f17.refresh'] = REG.acts['f11.refresh'];
 /* ==== END F11 ================================================================ */
 
+
+/* ==== BEGIN F12 — Change web app address ================================= */
+/* @spec F12
+ * Feature: Change web app address
+ * Status: New in v2
+ * Screen: Settings > This device
+ * Delta: New row in Settings > This device that opens the web app address screen with the current address filled in, so a device can be pointed at another workspace without clearing anything.
+ * Validations: Form: the address is required and must answer, the same check as the first connection. Cancel leaves everything as it was.
+ * Calculations: After a new address is accepted, the device asks for that workspace's team key and name, which are remembered separately for each address [CONFIRMED]. The old workspace's key and name stay remembered, so changing back does not ask again [CONFIRMED].
+ * Dependencies: F01 (connection screens and per-address memory).
+ * @end */
+REG.deviceRows.push(() => '<div class="row-top" style="margin-bottom:6px"><div class="muted">Web app address</div><button class="link-btn" data-act="f12.change">Change</button></div>');
+REG.acts['f12.change'] = () => {
+  viewConnect();
+  const i = $('input[data-k="url"]'); if (i) i.value = S.url;
+  $('#view').insertAdjacentHTML('beforeend', '<div class="center"><button class="link-btn" data-act="f12.cancel">Cancel</button></div>');
+};
+REG.acts['f12.cancel'] = () => startRouting();
+/* ==== END F12 ================================================================ */
+
+/* ==== BEGIN F13 — Logo from the landing page ============================= */
+/* @spec F13
+ * Feature: Logo from the landing page
+ * Status: New in v2
+ * Screen: Header on Home
+ * Delta: New logo at the left of the header on the Home screen. The landing page passes the logo's address in the link (logo=…), and the tool remembers it on the device for that workspace.
+ * Validations: Form: none. Only a full web address starting with http:// or https:// is accepted as a logo.
+ * Calculations: The logo is taken from the link only when the link's own web app address is the one in use, so a typed-in address never picks up another workspace's logo [CONFIRMED]. If the logo cannot be loaded, the header shows text only and nothing else is affected [CONFIRMED]. The logo shows on Home only, not on inner pages where the Back button sits [CONFIRMED].
+ * Dependencies: F01 (web app address and per-address memory); the landing page (supplies the logo address).
+ * @end */
+function logoSync(o) {
+  const img = $('#hLogo'); if (!img) return;
+  if (S.logo && img.getAttribute('src') !== S.logo) img.setAttribute('src', S.logo);
+  img.hidden = !S.logo || !!(o && o.back);
+}
+REG.hooks.url.push(() => {
+  const p = new URLSearchParams(location.search), lg = p.get('logo') || '';
+  if (/^https?:\/\//i.test(lg) && p.get('url') === S.url) store.set('logo', lg);
+  S.logo = store.get('logo') || '';
+});
+REG.hooks.chrome.push(logoSync);
+(function () { const img = $('#hLogo'); if (img) img.addEventListener('error', () => { S.logo = ''; img.hidden = true; }); })();
+/* ==== END F13 ================================================================ */
+
 /* ==== Feature Spec view (generated from the spec tags at build time) ========= */
 const FEATURE_SPEC = [
  {
@@ -1238,21 +1272,21 @@ const FEATURE_SPEC = [
  },
  {
   "feature": "Training page and status change",
-  "status": "New",
+  "status": "Modified in v3",
   "screen": "Training page (opened from any list)",
-  "delta": "New screen showing one training: client, product, dates, mode, venue, facilitators, participants, fee, invoice, received and pending amounts, receipts, links and feedback summary. The status can be changed from here.",
+  "delta": "New screen showing one training: client, product, dates, mode, venue, facilitators, participants, fee, invoice, received and pending amounts, receipts, links and feedback summary. The status can be changed from here. In v3 the product's duration in hours is shown under the dates.",
   "validations": "Form: none on the page itself. Delivered is greyed out while the training has not started. The server checks every status change.",
-  "calculations": "Tapping Planned saves at once. Tapping Confirmed saves at once when a facilitator is already on the training, otherwise the edit form opens with Confirmed chosen so a facilitator can be added [CONFIRMED]. Tapping Delivered opens the edit form with Delivered chosen so the actual participants, links and summary can be added [CONFIRMED]. Tapping Cancelled asks for confirmation first and keeps all receipts [CONFIRMED]. A cancelled training that has receipts shows a notice that money was received and that any refund is handled in Tally [CONFIRMED]. Total fee shows as an estimate until the actual participants are filled for a Per participant fee [CONFIRMED]. The pending age is shown for delivered trainings with an amount pending [CONFIRMED].",
+  "calculations": "Tapping Planned saves at once. Tapping Confirmed saves at once when a facilitator is already on the training, otherwise the edit form opens with Confirmed chosen so a facilitator can be added [CONFIRMED]. Tapping Delivered opens the edit form with Delivered chosen so the actual participants, links and summary can be added [CONFIRMED]. Tapping Cancelled asks for confirmation first and keeps all receipts [CONFIRMED]. A cancelled training that has receipts shows a notice that money was received and that any refund is handled in Tally [CONFIRMED]. Duration is the product's Default Duration (Hours) from the Products tab, shown only when it is a whole number above 0 [CONFIRMED]. Total fee shows as an estimate until the actual participants are filled for a Per participant fee [CONFIRMED]. The pending age is shown for delivered trainings with an amount pending [CONFIRMED].",
   "dependencies": "Trainings; Receipts; Products; Facilitators; Orgs (Org Master); F07 and F10 (forms); F08 (receipts).",
   "id": "F06"
  },
  {
   "feature": "Add training",
-  "status": "New",
+  "status": "Modified in v3",
   "screen": "Home > Add > New training",
-  "delta": "New form to schedule a training. Choosing the product pre-fills the mode, end date, fee basis and fee amount from the product's defaults, and the facilitator picker lists the facilitators who are eligible for that product first.",
+  "delta": "New form to schedule a training. Choosing the product pre-fills the mode, fee basis and fee amount from the product's defaults (in v3 the end date is no longer filled, because the product's default duration is now in hours), and the facilitator picker lists the facilitators who are eligible for that product first.",
   "validations": "Form: type, product, start date, mode and fee are required. Client is required for Client-specific and optional for Open batch. Venue shows only for In-person. Fee amount shows only when the fee is not Free. Expected participants are required for a Per participant fee. The end date cannot be earlier than the start date. The server repeats every check. Server checks: Product must be a Training product and Active (a saved training may keep a product that was made inactive later). Training Type must be Client-specific or Open batch. Client is required for Client-specific, optional for Open batch, and must exist in the Org Master (an archived client is replaced by its Archived To record). Start Date is required and valid; End Date is optional, valid and not earlier than Start Date. Mode must be Online or In-person. Venue is up to 120 characters and is cleared when Mode is Online. Facilitators must be names from the Facilitators tab, none twice, and only active ones unless already on this training; at least one is required when Status is Confirmed or Delivered. Status must be one of Planned, Confirmed, Delivered, Cancelled, and Delivered cannot be saved while Start Date is in the future. Expected Participants is a whole number of 1 or more, required for Per participant. Actual Participants is a whole number of 0 or more, required when Status is Delivered and Fee Basis is Per participant. Fee Basis must be Free, Per training or Per participant. Fee Amount is required for Per training and Per participant (above 0, at most 2 decimals) and is cleared when Free. Invoice No is up to 40 characters; Invoice Date is required when Invoice No is filled; both are cleared when Free. Feedback Link and Folder Link, if given, must be web addresses. Saved by must be an active member.",
-  "calculations": "New trainings start as Planned [CONFIRMED]. The end date is filled as the start date plus the product's default days minus 1, when the default is 2 days or more and the end date has not been typed [CONFIRMED]. Eligible facilitators are active ones whose level is at or above the product's Minimum Facilitator Level; with no minimum, every active facilitator is eligible [CONFIRMED]. Facilitators below that level can still be added, with a notice [CONFIRMED]. Picking a different product on this form pre-fills the defaults again [CONFIRMED]. After saving, the training page opens [CONFIRMED]. Server: Training ID is the highest existing number plus 1, written as TRN- plus 4 digits, under a script lock [CONFIRMED]. New trainings start as Planned and Client-specific unless chosen otherwise [CONFIRMED]. Facilitators are stored as names separated by a comma and a space [CONFIRMED]. Created On/By are set on save and never changed [CONFIRMED]. A change saves only the fields sent; Actual Participants and Feedback Summary are kept as saved when the status moves away from Delivered [CONFIRMED]. Org ID is stored as the replacement record when the chosen client has been archived [CONFIRMED].",
+  "calculations": "New trainings start as Planned [CONFIRMED]. The end date is left blank for a one-day training and typed in for a longer one; the product's default duration in hours is not used to work out dates [CONFIRMED]. Eligible facilitators are active ones whose level is at or above the product's Minimum Facilitator Level; with no minimum, every active facilitator is eligible [CONFIRMED]. Facilitators below that level can still be added, with a notice [CONFIRMED]. Picking a different product on this form pre-fills the defaults again [CONFIRMED]. After saving, the training page opens [CONFIRMED]. Server: Training ID is the highest existing number plus 1, written as TRN- plus 4 digits, under a script lock [CONFIRMED]. New trainings start as Planned and Client-specific unless chosen otherwise [CONFIRMED]. Facilitators are stored as names separated by a comma and a space [CONFIRMED]. Created On/By are set on save and never changed [CONFIRMED]. A change saves only the fields sent; Actual Participants and Feedback Summary are kept as saved when the status moves away from Delivered [CONFIRMED]. Org ID is stored as the replacement record when the chosen client has been archived [CONFIRMED].",
   "dependencies": "Trainings; Products and Members (company sheet); Facilitators; Levels; Orgs (Org Master); F02 to F06 (lists and page). Server: Trainings; Facilitators; Products, Members (company sheet); Orgs (Org Master).",
   "id": "F07"
  },
@@ -1295,6 +1329,26 @@ const FEATURE_SPEC = [
   "calculations": "Refresh fetches the same data as the first load and redraws the current screen [CONFIRMED]. If the fetch fails, a message appears and the data already on screen is kept [CONFIRMED]. Settings > Reload does the same and stays [CONFIRMED].",
   "dependencies": "F01 (data load).",
   "id": "F11"
+ },
+ {
+  "feature": "Change web app address",
+  "status": "New in v2",
+  "screen": "Settings > This device",
+  "delta": "New row in Settings > This device that opens the web app address screen with the current address filled in, so a device can be pointed at another workspace without clearing anything.",
+  "validations": "Form: the address is required and must answer, the same check as the first connection. Cancel leaves everything as it was.",
+  "calculations": "After a new address is accepted, the device asks for that workspace's team key and name, which are remembered separately for each address [CONFIRMED]. The old workspace's key and name stay remembered, so changing back does not ask again [CONFIRMED].",
+  "dependencies": "F01 (connection screens and per-address memory).",
+  "id": "F12"
+ },
+ {
+  "feature": "Logo from the landing page",
+  "status": "New in v2",
+  "screen": "Header on Home",
+  "delta": "New logo at the left of the header on the Home screen. The landing page passes the logo's address in the link (logo=…), and the tool remembers it on the device for that workspace.",
+  "validations": "Form: none. Only a full web address starting with http:// or https:// is accepted as a logo.",
+  "calculations": "The logo is taken from the link only when the link's own web app address is the one in use, so a typed-in address never picks up another workspace's logo [CONFIRMED]. If the logo cannot be loaded, the header shows text only and nothing else is affected [CONFIRMED]. The logo shows on Home only, not on inner pages where the Back button sits [CONFIRMED].",
+  "dependencies": "F01 (web app address and per-address memory); the landing page (supplies the logo address).",
+  "id": "F13"
  }
 ];
 REG.settingsItems.push({ group: 'Reference', order: 1, label: 'Feature Spec', route: 'spec' });
@@ -1379,6 +1433,7 @@ function startRouting() {
 function useUrl(url) {
   NS = 'trn.'; store.set('lastUrl', url);
   S.url = url; NS = 'trn.' + hashStr(url) + '.';
+  REG.hooks.url.forEach(f => f());
 }
 function begin() {
   S.key = store.get('key') || '';
