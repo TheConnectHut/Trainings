@@ -793,7 +793,7 @@ REG.routes.training = function (args) {
   const free = t['Fee Basis'] === 'Free';
   const future = t['Start Date'] > todayStr();
   const kv = rows => '<dl class="kv">' + rows.map(r => '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>').join('') + '</dl>';
-  const hrs = (S.idx.prod[t['Product ID']] || {})['Default Duration (Hours)'];
+  const hrs = t['Hours'];   // F15: the training's own hours
   const details = [['Dates', esc(dateRange(t))]].concat(/^[1-9]\d*$/.test(String(hrs || '').trim()) ? [['Duration', plural(parseInt(hrs, 10), 'hour')]] : []).concat([['Mode', esc(t['Mode']) + (t['Venue'] ? ' · ' + esc(t['Venue']) : '')],
     ['Facilitators', facs.length ? facs.map(n => { const f = S.idx.fac[n]; return esc(n) + (f ? ' <span class="muted small">L' + esc(f['Level']) + '</span>' : ''); }).join('<br>') : '—'],
     ['Participants', (t['Actual Participants'] !== '' ? esc(t['Actual Participants']) + ' attended' : (t['Expected Participants'] !== '' ? esc(t['Expected Participants']) + ' expected' : '—'))]]);
@@ -873,7 +873,8 @@ function trnFormHtml(t, isNew, startStatus) {
     + fChips('Training Type', 'Type', TYPES, { req: true, value: type })
     + fCombo('Org ID', 'Client', orgItems, { req: type === 'Client-specific', value: t['Org ID'] ? resolveOrgId(t['Org ID']) : '', placeholder: 'Search clients' })
     + fChoice('Product ID', 'Product', trnProductOptions(t['Product ID']), { req: true, value: t['Product ID'] })
-    + '<div class="two">' + fDate('Start Date', 'Starts on', { req: true, value: t['Start Date'] }) + fDate('End Date', 'Ends on', { value: t['End Date'] }) + '</div>'
+    + '<div class="two">' + fDate('Start Date', 'Starts on', { req: true, value: t['Start Date'] }) + fDate('End Date', 'Ends on', { req: true, value: t['End Date'] || t['Start Date'] }) + '</div>'
+    + fText('Hours', 'Hours', { req: true, value: t['Hours'], type: 'number' })
     + fChips('Mode', 'Mode', MODES, { req: true, value: t['Mode'] })
     + fText('Venue', 'Venue', { value: t['Venue'], hidden: t['Mode'] !== 'In-person' })
     + (isNew ? '' : fChips('Status', 'Status', STATUSES, { req: true, value: status }))
@@ -917,9 +918,15 @@ function trnWire(root, isNew) {
     setReq(W('Invoice Date'), !free && !!val('Invoice No'));
     const ed = $('[data-k]', W('End Date')); ed.min = val('Start Date') || '';
   }
+  let endTouched = !isNew && !!val('End Date') && val('End Date') > val('Start Date');   // F14
+  function syncEnd() {                                                                    // F14
+    const s = val('Start Date'), e = val('End Date');
+    if (s && (!endTouched || !e || e < s)) setVal('End Date', s);
+  }
   function onProduct() {
     const p = S.idx.prod[val('Product ID')];
     if (isNew && p) {
+      if (/^[1-9]\d*$/.test(String(p['Default Duration (Hours)'] || '').trim())) setVal('Hours', String(parseInt(p['Default Duration (Hours)'], 10)));   // F15
       if (MODES.indexOf(p['Default Mode']) >= 0) setChip('Mode', p['Default Mode']);
       if (BASES.indexOf(p['Default Fee Basis']) >= 0) setChip('Fee Basis', p['Default Fee Basis']);
       setVal('Fee Amount', p['Default Fee Basis'] === 'Free' ? '' : (p['Default Fee Amount'] || ''));
@@ -935,7 +942,8 @@ function trnWire(root, isNew) {
   });
   root.addEventListener('change', ev => {
     if (ev.target.closest('.field[data-f="Product ID"]')) onProduct();
-    else if (ev.target.closest('.field[data-f="Start Date"]')) refresh();
+    else if (ev.target.closest('.field[data-f="Start Date"]')) { syncEnd(); refresh(); }   // F14
+    else if (ev.target.closest('.field[data-f="End Date"]')) { endTouched = true; refresh(); }   // F14
   });
   root.addEventListener('input', ev => { if (ev.target.closest('.field[data-f="Invoice No"]')) refresh(); });
   root.addEventListener('combochange', ev => {
@@ -955,19 +963,21 @@ function trnCollect(root) {
 }
 function trnCheck(f) {
   if (f['Invoice No'] && !f['Invoice Date']) return 'Please add the invoice date.';
+  if (f['Start Date'] && !f['End Date']) return 'Please add the end date.';   // F14
   if (f['Start Date'] && f['End Date'] && f['End Date'] < f['Start Date']) return 'The end date cannot be earlier than the start date.';
+  if (!/^[1-9]\d*$/.test(String(f['Hours'] || '').trim())) return 'Please enter the training hours as a whole number, 1 or more.';   // F15
   return '';
 }
 
 /* ==== BEGIN F07 — Add training ============================================== */
 /* @spec F07
  * Feature: Add training
- * Status: Modified in v3
+ * Status: Modified in v4
  * Screen: Home > Add > New training
- * Delta: New form to schedule a training. Choosing the product pre-fills the mode, fee basis and fee amount from the product's defaults (in v3 the end date is no longer filled, because the product's default duration is now in hours), and the facilitator picker lists the facilitators who are eligible for that product first.
- * Validations: Form: type, product, start date, mode and fee are required. Client is required for Client-specific and optional for Open batch. Venue shows only for In-person. Fee amount shows only when the fee is not Free. Expected participants are required for a Per participant fee. The end date cannot be earlier than the start date. The server repeats every check.
- * Calculations: New trainings start as Planned [CONFIRMED]. The end date is left blank for a one-day training and typed in for a longer one; the product's default duration in hours is not used to work out dates [CONFIRMED]. Eligible facilitators are active ones whose level is at or above the product's Minimum Facilitator Level; with no minimum, every active facilitator is eligible [CONFIRMED]. Facilitators below that level can still be added, with a notice [CONFIRMED]. Picking a different product on this form pre-fills the defaults again [CONFIRMED]. After saving, the training page opens [CONFIRMED].
- * Dependencies: Trainings; Products and Members (company sheet); Facilitators; Levels; Orgs (Org Master); F02 to F06 (lists and page).
+ * Delta: New form to schedule a training. Choosing the product pre-fills the mode, fee basis, fee amount and hours from the product's defaults (see F15), the end date follows the start date (see F14), and the facilitator picker lists the facilitators who are eligible for that product first.
+ * Validations: Form: type, product, start date, mode and fee are required. Client is required for Client-specific and optional for Open batch. Venue shows only for In-person. Fee amount shows only when the fee is not Free. Expected participants are required for a Per participant fee. The end date is required and cannot be earlier than the start date. Hours is required, a whole number of 1 or more. The server repeats every check.
+ * Calculations: New trainings start as Planned [CONFIRMED]. The end date is the start date for a one-day training and typed in for a longer one; the product's default duration in hours is not used to work out dates [CONFIRMED]. Eligible facilitators are active ones whose level is at or above the product's Minimum Facilitator Level; with no minimum, every active facilitator is eligible [CONFIRMED]. Facilitators below that level can still be added, with a notice [CONFIRMED]. Picking a different product on this form pre-fills the defaults again [CONFIRMED]. After saving, the training page opens [CONFIRMED].
+ * Dependencies: Trainings; Products and Members (company sheet); Facilitators; Levels; Orgs (Org Master); F02 to F06 (lists and page); F14; F15.
  * @end */
 REG.addMenu.push({ order: 1, label: 'New training', route: 'new-training' });
 REG.routes['new-training'] = function () {
@@ -1282,12 +1292,12 @@ const FEATURE_SPEC = [
  },
  {
   "feature": "Add training",
-  "status": "Modified in v3",
+  "status": "Modified in v4",
   "screen": "Home > Add > New training",
-  "delta": "New form to schedule a training. Choosing the product pre-fills the mode, fee basis and fee amount from the product's defaults (in v3 the end date is no longer filled, because the product's default duration is now in hours), and the facilitator picker lists the facilitators who are eligible for that product first.",
-  "validations": "Form: type, product, start date, mode and fee are required. Client is required for Client-specific and optional for Open batch. Venue shows only for In-person. Fee amount shows only when the fee is not Free. Expected participants are required for a Per participant fee. The end date cannot be earlier than the start date. The server repeats every check. Server checks: Product must be a Training product and Active (a saved training may keep a product that was made inactive later). Training Type must be Client-specific or Open batch. Client is required for Client-specific, optional for Open batch, and must exist in the Org Master (an archived client is replaced by its Archived To record). Start Date is required and valid; End Date is optional, valid and not earlier than Start Date. Mode must be Online or In-person. Venue is up to 120 characters and is cleared when Mode is Online. Facilitators must be names from the Facilitators tab, none twice, and only active ones unless already on this training; at least one is required when Status is Confirmed or Delivered. Status must be one of Planned, Confirmed, Delivered, Cancelled, and Delivered cannot be saved while Start Date is in the future. Expected Participants is a whole number of 1 or more, required for Per participant. Actual Participants is a whole number of 0 or more, required when Status is Delivered and Fee Basis is Per participant. Fee Basis must be Free, Per training or Per participant. Fee Amount is required for Per training and Per participant (above 0, at most 2 decimals) and is cleared when Free. Invoice No is up to 40 characters; Invoice Date is required when Invoice No is filled; both are cleared when Free. Feedback Link and Folder Link, if given, must be web addresses. Saved by must be an active member.",
-  "calculations": "New trainings start as Planned [CONFIRMED]. The end date is left blank for a one-day training and typed in for a longer one; the product's default duration in hours is not used to work out dates [CONFIRMED]. Eligible facilitators are active ones whose level is at or above the product's Minimum Facilitator Level; with no minimum, every active facilitator is eligible [CONFIRMED]. Facilitators below that level can still be added, with a notice [CONFIRMED]. Picking a different product on this form pre-fills the defaults again [CONFIRMED]. After saving, the training page opens [CONFIRMED]. Server: Training ID is the highest existing number plus 1, written as TRN- plus 4 digits, under a script lock [CONFIRMED]. New trainings start as Planned and Client-specific unless chosen otherwise [CONFIRMED]. Facilitators are stored as names separated by a comma and a space [CONFIRMED]. Created On/By are set on save and never changed [CONFIRMED]. A change saves only the fields sent; Actual Participants and Feedback Summary are kept as saved when the status moves away from Delivered [CONFIRMED]. Org ID is stored as the replacement record when the chosen client has been archived [CONFIRMED].",
-  "dependencies": "Trainings; Products and Members (company sheet); Facilitators; Levels; Orgs (Org Master); F02 to F06 (lists and page). Server: Trainings; Facilitators; Products, Members (company sheet); Orgs (Org Master).",
+  "delta": "New form to schedule a training. Choosing the product pre-fills the mode, fee basis, fee amount and hours from the product's defaults (see F15), the end date follows the start date (see F14), and the facilitator picker lists the facilitators who are eligible for that product first.",
+  "validations": "Form: type, product, start date, mode and fee are required. Client is required for Client-specific and optional for Open batch. Venue shows only for In-person. Fee amount shows only when the fee is not Free. Expected participants are required for a Per participant fee. The end date is required and cannot be earlier than the start date. Hours is required, a whole number of 1 or more. The server repeats every check. Server checks: Product must be a Training product and Active (a saved training may keep a product that was made inactive later). Training Type must be Client-specific or Open batch. Client is required for Client-specific, optional for Open batch, and must exist in the Org Master (an archived client is replaced by its Archived To record). Start Date is required and valid; End Date is required, valid and not earlier than Start Date (see F14); Hours is a whole number of 1 or more (see F15). Mode must be Online or In-person. Venue is up to 120 characters and is cleared when Mode is Online. Facilitators must be names from the Facilitators tab, none twice, and only active ones unless already on this training; at least one is required when Status is Confirmed or Delivered. Status must be one of Planned, Confirmed, Delivered, Cancelled, and Delivered cannot be saved while Start Date is in the future. Expected Participants is a whole number of 1 or more, required for Per participant. Actual Participants is a whole number of 0 or more, required when Status is Delivered and Fee Basis is Per participant. Fee Basis must be Free, Per training or Per participant. Fee Amount is required for Per training and Per participant (above 0, at most 2 decimals) and is cleared when Free. Invoice No is up to 40 characters; Invoice Date is required when Invoice No is filled; both are cleared when Free. Feedback Link and Folder Link, if given, must be web addresses. Saved by must be an active member.",
+  "calculations": "New trainings start as Planned [CONFIRMED]. The end date is the start date for a one-day training and typed in for a longer one; the product's default duration in hours is not used to work out dates [CONFIRMED]. Eligible facilitators are active ones whose level is at or above the product's Minimum Facilitator Level; with no minimum, every active facilitator is eligible [CONFIRMED]. Facilitators below that level can still be added, with a notice [CONFIRMED]. Picking a different product on this form pre-fills the defaults again [CONFIRMED]. After saving, the training page opens [CONFIRMED]. Server: Training ID is the highest existing number plus 1, written as TRN- plus 4 digits, under a script lock [CONFIRMED]. New trainings start as Planned and Client-specific unless chosen otherwise [CONFIRMED]. Facilitators are stored as names separated by a comma and a space [CONFIRMED]. Created On/By are set on save and never changed [CONFIRMED]. A change saves only the fields sent; Actual Participants and Feedback Summary are kept as saved when the status moves away from Delivered [CONFIRMED]. Org ID is stored as the replacement record when the chosen client has been archived [CONFIRMED].",
+  "dependencies": "Trainings; Products and Members (company sheet); Facilitators; Levels; Orgs (Org Master); F02 to F06 (lists and page); F14; F15. Server: Trainings; Facilitators; Products, Members (company sheet); Orgs (Org Master).",
   "id": "F07"
  },
  {
@@ -1349,6 +1359,36 @@ const FEATURE_SPEC = [
   "calculations": "The logo is taken from the link only when the link's own web app address is the one in use, so a typed-in address never picks up another workspace's logo [CONFIRMED]. If the logo cannot be loaded, the header shows text only and nothing else is affected [CONFIRMED]. The logo shows on Home only, not on inner pages where the Back button sits [CONFIRMED].",
   "dependencies": "F01 (web app address and per-address memory); the landing page (supplies the logo address).",
   "id": "F13"
+ },
+ {
+  "feature": "End date compulsory",
+  "status": "Modified in v4",
+  "screen": "New training and Edit training forms",
+  "delta": "End Date was optional (blank meant a single day). It is now required, and the form fills it with the Start Date as soon as the start date is picked, so a one-day training needs no extra typing. Reuse the existing end date field; the change is the required flag and the defaulting.",
+  "validations": "Form: the end date is required and cannot be earlier than the start date. Server checks: End Date is required, valid and not earlier than Start Date; a save without it is refused. Trainings saved before v4 may still have a blank End Date; they must be given one the next time they are edited.",
+  "calculations": "Picking or changing the start date sets the end date to the same day unless the user has chosen a later end date themselves [CONFIRMED]. A training counts in a reporting period by its last day, which is the End Date [CONFIRMED]. Rows with a blank End Date are treated as ending on their Start Date until edited [CONFIRMED].",
+  "dependencies": "Trainings: Start Date, End Date; F16 (Insights reads the last day).",
+  "id": "F14"
+ },
+ {
+  "feature": "Training hours",
+  "status": "New in v4",
+  "screen": "New training and Edit training forms; Training page",
+  "delta": "New Hours field on every training: the total teaching hours of that training. It is the last column of the Trainings tab. On a new training it is pre-filled from the product's Default Duration (Hours) and can be changed. Not worked out for trainings saved before v4: those are filled in by hand in the sheet.",
+  "validations": "Form: hours is required, a whole number of 1 or more. Server checks: the same, and the Trainings tab must have a column headed Hours.",
+  "calculations": "Training hours in Insights is the sum of Hours over delivered trainings [CONFIRMED]. Picking a product on a new training pre-fills Hours from the product's Default Duration (Hours) when that is a whole number; a saved training is never changed by picking a product [CONFIRMED]. Part hours are not allowed [CONFIRMED].",
+  "dependencies": "Trainings: Hours; Products (company sheet): Default Duration (Hours); F16 (Insights).",
+  "id": "F15"
+ },
+ {
+  "feature": "Insights read access (Training)",
+  "status": "New in v4",
+  "screen": "Not a screen: the Insights page reads this web app",
+  "delta": "One new read-only action, getTrainingInsights, returns what the Training view of Insights needs: trainings, products, facilitators, the organisations the trainings point to, and the settings. Receipts are not sent. It has its own key, the Insights Team Key in this sheet's Config tab.",
+  "validations": "Server checks: the action accepts the Insights Team Key or the Team Key and refuses any other key. If the Insights Team Key is blank, this action opens to anyone who has the web app address. Every other action still needs the Team Key; the Insights key is refused for them.",
+  "calculations": "Nothing is stored. The settings sent are today's date, the financial year start month (Company Config > Financial Year Start Month, 4 when blank or not 1 to 12), the workspace name, the primary colour and the tool title [CONFIRMED]. Organisations are sent with Org ID, name, type, city, state, record status and archived to [CONFIRMED].",
+  "dependencies": "Config: Insights Team Key, Team Key; Trainings; Products, Config (company sheet); Facilitators; Orgs (Org Master); Insights page.",
+  "id": "F16"
  }
 ];
 REG.settingsItems.push({ group: 'Reference', order: 1, label: 'Feature Spec', route: 'spec' });
